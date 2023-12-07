@@ -104,10 +104,22 @@ ssize_t read(int fd, void *buf, size_t count) {
 #define SYS_KILL 37
 int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
 
+#define SYS_SIGABRT 6
+[[noreturn]] void abort(void) {
+  for (;;)
+    kill(0, SYS_SIGABRT);
+}
+
+#define assert(cond) (cond) ? (void)0 : abort()
+
 void *memset(void *s, int c, size_t n) {
-  __asm__("cmp   r1, #0; beq   2f; adds  r1, r0, r1; 1:	strb  r2, [r0]; adds  "
-          "r0, r0, #1; cmp   r1, r0; bne   1b; 2:	bx    lr");
+  for (size_t i = 0; i < n; i++)
+    ((uint8_t *)s)[i] = c;
   return s;
 }
 
-//void *memcpy(void *s, int c, size_t n) {}
+void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
+  for (size_t i = 0; i < n; i++)
+    ((uint8_t *)dst)[i] = ((uint8_t *)src)[i];
+  return dst;
+}
