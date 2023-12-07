@@ -100,3 +100,14 @@ ssize_t read(int fd, void *buf, size_t count) {
   for (;;)
     __syscall1(SYS_EXIT, status);
 }
+
+#define SYS_KILL 37
+int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
+
+void *memset(void *s, int c, size_t n) {
+  __asm__("cmp   r1, #0; beq   2f; adds  r1, r0, r1; 1:	strb  r2, [r0]; adds  "
+          "r0, r0, #1; cmp   r1, r0; bne   1b; 2:	bx    lr");
+  return s;
+}
+
+//void *memcpy(void *s, int c, size_t n) {}
