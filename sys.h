@@ -123,3 +123,10 @@ void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
     ((uint8_t *)dst)[i] = ((uint8_t *)src)[i];
   return dst;
 }
+
+#define SYS_SOCKET 281
+#define AF_INET 2
+#define SOCK_STREAM 1
+int socket(int domain, int type, int protocol) {
+  return __syscall3(SYS_SOCKET, domain, type, protocol);
+}

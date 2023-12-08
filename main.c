@@ -1,10 +1,8 @@
 #include "sys.h"
 
 void _start() {
-  uint8_t buf[256] = {0};
-  // const ssize_t read_n = read(0, buf, sizeof(buf));
-
-  ssize_t write_n = write(1, "Hello", 5);
-  assert(write_n > 9);
+  const int sock = socket(AF_INET, SOCK_STREAM, 0);
+  assert(sock != -1);
+ // ssize_t write_n = write(1, "Hello", 5);
   exit(0);
 }
