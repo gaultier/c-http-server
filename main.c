@@ -1,9 +1,5 @@
 #include "sys.h"
 
-static uint16_t u16_to_be(uint16_t n) {
-  return ((uint16_t)(n & 0xff00) << 8) | (uint16_t)(n & 0xff);
-}
-
 static void fd_puts(int fd, char *msg) { write(fd, msg, sizeof(msg)); }
 
 static void handle_connection(int client_socket) {
@@ -15,8 +11,8 @@ void _start() {
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
   assert(server_socket >= 0);
 
-  const uint16_t port = 80;
-  const uint16_t net_port = u16_to_be(port);
+  const uint16_t port = 4096;
+  const uint16_t net_port = (uint16_t)__builtin_bswap16(port);
 
   const struct sockaddr addr = {
       .sin_family = AF_INET,
@@ -30,7 +26,7 @@ void _start() {
   assert(listen(server_socket, backlog) == 0);
   // ssize_t write_n = write(1, "Hello", 5);
 
-  fd_puts(stdout, "Listening to: 0.0.0.0:12345");
+  fd_puts(stderr, "Listening to: 0.0.0.0:4096");
 
   for (;;) {
     const int client_socket = accept(server_socket, NULL, 0);

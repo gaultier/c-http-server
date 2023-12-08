@@ -1,10 +1,10 @@
 #pragma once
 
 typedef int ssize_t;
-typedef unsigned int size_t;
+typedef unsigned size_t;
 typedef unsigned char uint8_t;
-typedef unsigned int uint32_t;
-typedef unsigned short int uint16_t;
+typedef unsigned uint32_t;
+typedef unsigned short uint16_t;
 
 /* Avoid use of r7 in asm constraints when producing thumb code,
  * since it's reserved as frame pointer and might not be supported. */
@@ -89,12 +89,12 @@ static inline long __syscall6(long n, long a, long b, long c, long d, long e,
 
 #define SYS_WRITE 4
 static ssize_t write(int fd, const void *buf, size_t count) {
-  return (ssize_t)__syscall3(SYS_WRITE, fd, (long)buf, count);
+  return (ssize_t)__syscall3(SYS_WRITE, fd, (long)buf, (long)count);
 }
 
 #define SYS_READ 3
 static ssize_t read(int fd, void *buf, size_t count) {
-  return (ssize_t)__syscall3(SYS_READ, fd, (long)buf, count);
+  return (ssize_t)__syscall3(SYS_READ, fd, (long)buf, (long)count);
 }
 
 #define SYS_EXIT 1
@@ -116,7 +116,7 @@ static int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
 
 static void *memset(void *s, int c, size_t n) {
   for (size_t i = 0; i < n; i++)
-    ((uint8_t *)s)[i] = c;
+    ((uint8_t *)s)[i] = (uint8_t)c;
   return s;
 }
 
@@ -130,7 +130,7 @@ static void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
 #define AF_INET 2
 #define SOCK_STREAM 1
 static int socket(int domain, int type, int protocol) {
-  return __syscall3(SYS_SOCKET, domain, type, protocol);
+  return __syscall6(SYS_SOCKET, domain, type, protocol, 0, 0, 0);
 }
 
 #define SYS_BIND 282
@@ -141,18 +141,18 @@ struct sockaddr {
 };
 
 static int bind(int sockfd, const struct sockaddr *addr, uint32_t addrlen) {
-  return __syscall3(SYS_BIND, sockfd, (long)addr, addrlen);
+  return __syscall6(SYS_BIND, sockfd, (long)addr, (long)addrlen, 0, 0, 0);
 }
 
 #define SYS_LISTEN 284
 static int listen(int sockfd, int backlog) {
-  return __syscall2(SYS_LISTEN, sockfd, backlog);
+  return __syscall6(SYS_LISTEN, sockfd, backlog, 0, 0, 0, 0);
 }
 
 #define SYS_ACCEPT 285
 static int accept(int sockfd, struct sockaddr *restrict addr,
                   uint32_t addrlen) {
-  return __syscall3(SYS_ACCEPT, sockfd, (long)addr, addrlen);
+  return __syscall6(SYS_ACCEPT, sockfd, (long)addr, (long)addrlen, 0, 0, 0);
 }
 
 #define NULL 0
