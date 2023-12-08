@@ -4,7 +4,8 @@ static void fd_puts(int fd, char *msg) { write(fd, msg, sizeof(msg)); }
 
 static void handle_connection(int client_socket) {
   write(client_socket, "Hello!", 6);
-  close(client_socket);
+
+  exit(0);
 }
 
 void _start() {
