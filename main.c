@@ -1,23 +1,26 @@
 #include "sys.h"
 
-uint16_t u16_to_be(uint16_t n) { return ((n & 0xff00) << 8) | (n & 0xff); }
-uint32_t u32_to_be(uint32_t n) {
-  return ((n & 0xff000000) << 24) | (n & 0x00ff0000) << 16 |
-         ((n & 0x0000ff00) << 8) | (n & 0xff);
+static uint16_t u16_to_be(uint16_t n) {
+  return ((uint16_t)(n & 0xff00) << 8) | (uint16_t)(n & 0xff);
 }
 
-static void print_err(char *err) { write(stderr, err, sizeof(err)); }
+static void fd_puts(int fd, char *msg) { write(fd, msg, sizeof(msg)); }
+
+static void handle_connection(int client_socket) {
+  write(client_socket, "Hello!", 6);
+  close(client_socket);
+}
 
 void _start() {
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
   assert(server_socket >= 0);
 
-  const uint16_t port = 12345;
+  const uint16_t port = 80;
+  const uint16_t net_port = u16_to_be(port);
 
   const struct sockaddr addr = {
       .sin_family = AF_INET,
-      .sin_addr = 0,
-      .sin_port = u16_to_be(port),
+      .sin_port = net_port,
   };
   assert(bind(server_socket, &addr, sizeof(addr)) == 0);
 
@@ -27,9 +30,28 @@ void _start() {
   assert(listen(server_socket, backlog) == 0);
   // ssize_t write_n = write(1, "Hello", 5);
 
-  const int client_socket = accept(server_socket, NULL, 0);
-  if (client_socket <= 0) {
-    print_err("Failed to accept(2)\n");
+  fd_puts(stdout, "Listening to: 0.0.0.0:12345");
+
+  for (;;) {
+    const int client_socket = accept(server_socket, NULL, 0);
+    if (client_socket <= 0) {
+      fd_puts(stderr, "Failed to accept(2)\n");
+      continue;
+    }
+
+    const int pid = fork();
+    if (pid == -1) {
+      fd_puts(stderr, "Failed to fork(2)\n");
+      close(client_socket);
+      continue;
+    }
+
+    if (pid == 0) { // Child.
+      handle_connection(client_socket);
+    } else { // Parent.
+      close(client_socket);
+    }
   }
+
   exit(0);
 }

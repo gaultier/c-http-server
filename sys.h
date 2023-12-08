@@ -159,3 +159,9 @@ static int accept(int sockfd, struct sockaddr *restrict addr,
 #define stdin 0
 #define stdout 1
 #define stderr 2
+
+#define SYS_FORK 2
+static int fork(void) { return __syscall0(SYS_FORK); }
+
+#define SYS_CLOSE 6
+static int close(int fd) { return __syscall1(SYS_CLOSE, fd); }
