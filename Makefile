@@ -5,11 +5,13 @@ CC = clang
 # Assume clang for cross compilation.
 MY_CFLAGS := -Wall -Wextra -Wpadded -Wconversion -std=c99 --target=armv6-linux-none -static -g3 -fuse-ld=lld -nostdlib -mfloat-abi=hard -march=armv6
 
+main: $(SRC)
+	$(CC) $(MY_CFLAGS) main.c -o main -Ofast -march=armv6
+
 main_debug: $(SRC)
 	$(CC) $(MY_CFLAGS) main.c -o main_debug -O0
 
-main: $(SRC)
-	$(CC) $(MY_CFLAGS) main.c -o main -Ofast -march=armv6
+all: main main_debug
 
 debug_main:
 	qemu-arm -g 1234 ./main &
@@ -22,4 +24,4 @@ debug_main_debug:
 	pkill qemu
 
 
-.PHONY: debug
+.PHONY: debug all
