@@ -3,6 +3,8 @@
 typedef int ssize_t;
 typedef unsigned int size_t;
 typedef unsigned char uint8_t;
+typedef unsigned int uint32_t;
+typedef unsigned short int uint16_t;
 
 /* Avoid use of r7 in asm constraints when producing thumb code,
  * since it's reserved as frame pointer and might not be supported. */
@@ -130,3 +132,16 @@ void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
 int socket(int domain, int type, int protocol) {
   return __syscall3(SYS_SOCKET, domain, type, protocol);
 }
+
+#define SYS_BIND 282
+struct sockaddr {
+  uint16_t sin_family, sin_port;
+  uint32_t sin_addr;
+  uint8_t sin_zero[8];
+};
+
+int bind(int sockfd, const struct sockaddr *addr, uint32_t addrlen) {
+  return __syscall3(SYS_BIND, sockfd, (long)addr, addrlen);
+}
+
+#define SYS_LISTEN 284
