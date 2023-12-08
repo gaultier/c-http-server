@@ -1,6 +1,9 @@
 #include "sys.h"
 
-static void fd_puts(int fd, char *msg) { write(fd, msg, sizeof(msg)); }
+#define fd_puts(fd, msg)                                                       \
+  do {                                                                         \
+    write(fd, msg, sizeof(msg));                                               \
+  } while (0)
 
 static void handle_connection(int client_socket) {
   write(client_socket, "Hello!", 6);
@@ -27,7 +30,7 @@ void _start() {
   assert(listen(server_socket, backlog) == 0);
   // ssize_t write_n = write(1, "Hello", 5);
 
-  fd_puts(stderr, "Listening to: 0.0.0.0:4096");
+  fd_puts(stderr, "Listening to: 0.0.0.0:4096\n");
 
   for (;;) {
     const int client_socket = accept(server_socket, NULL, 0);
