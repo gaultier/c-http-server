@@ -88,39 +88,39 @@ static inline long __syscall6(long n, long a, long b, long c, long d, long e,
 }
 
 #define SYS_WRITE 4
-ssize_t write(int fd, const void *buf, size_t count) {
+static ssize_t write(int fd, const void *buf, size_t count) {
   return (ssize_t)__syscall3(SYS_WRITE, fd, (long)buf, count);
 }
 
 #define SYS_READ 3
-ssize_t read(int fd, void *buf, size_t count) {
+static ssize_t read(int fd, void *buf, size_t count) {
   return (ssize_t)__syscall3(SYS_READ, fd, (long)buf, count);
 }
 
 #define SYS_EXIT 1
-[[noreturn]] void exit(int status) {
+[[noreturn]] static void exit(int status) {
   for (;;)
     __syscall1(SYS_EXIT, status);
 }
 
 #define SYS_KILL 37
-int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
+static int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
 
 #define SYS_SIGABRT 6
-[[noreturn]] void abort(void) {
+[[noreturn]] static void abort(void) {
   for (;;)
     kill(0, SYS_SIGABRT);
 }
 
 #define assert(cond) (cond) ? (void)0 : abort()
 
-void *memset(void *s, int c, size_t n) {
+static void *memset(void *s, int c, size_t n) {
   for (size_t i = 0; i < n; i++)
     ((uint8_t *)s)[i] = c;
   return s;
 }
 
-void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
+static void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
   for (size_t i = 0; i < n; i++)
     ((uint8_t *)dst)[i] = ((uint8_t *)src)[i];
   return dst;
@@ -129,7 +129,7 @@ void *memcpy(void *restrict dst, const void *restrict src, size_t n) {
 #define SYS_SOCKET 281
 #define AF_INET 2
 #define SOCK_STREAM 1
-int socket(int domain, int type, int protocol) {
+static int socket(int domain, int type, int protocol) {
   return __syscall3(SYS_SOCKET, domain, type, protocol);
 }
 
@@ -140,8 +140,22 @@ struct sockaddr {
   uint8_t sin_zero[8];
 };
 
-int bind(int sockfd, const struct sockaddr *addr, uint32_t addrlen) {
+static int bind(int sockfd, const struct sockaddr *addr, uint32_t addrlen) {
   return __syscall3(SYS_BIND, sockfd, (long)addr, addrlen);
 }
 
 #define SYS_LISTEN 284
+static int listen(int sockfd, int backlog) {
+  return __syscall2(SYS_LISTEN, sockfd, backlog);
+}
+
+#define SYS_ACCEPT 285
+static int accept(int sockfd, struct sockaddr *restrict addr,
+                  uint32_t addrlen) {
+  return __syscall3(SYS_ACCEPT, sockfd, (long)addr, addrlen);
+}
+
+#define NULL 0
+#define stdin 0
+#define stdout 1
+#define stderr 2
