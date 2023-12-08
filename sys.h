@@ -98,7 +98,7 @@ static ssize_t read(int fd, void *buf, size_t count) {
 }
 
 #define SYS_EXIT 1
-[[noreturn]] static void exit(int status) {
+static void exit(int status) {
   for (;;)
     __syscall1(SYS_EXIT, status);
 }
@@ -107,7 +107,7 @@ static ssize_t read(int fd, void *buf, size_t count) {
 static int kill(int pid, int sig) { return __syscall2(SYS_KILL, pid, sig); }
 
 #define SYS_SIGABRT 6
-[[noreturn]] static void abort(void) {
+static void abort(void) {
   for (;;)
     kill(0, SYS_SIGABRT);
 }
