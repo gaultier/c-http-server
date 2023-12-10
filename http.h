@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cursor.h"
 #include "str.h"
 
 typedef enum {
@@ -18,6 +19,7 @@ typedef struct {
 // TODO: headers.
 typedef struct {
   Method method;
+  int error;
   Str path;
   Str body;
 } Request;
@@ -27,3 +29,10 @@ typedef struct {
   u16 status;
   Str body;
 } Response;
+
+static Request parse_request(Read_result read_res) {
+  if (read_res.error) {
+    return (Request){.error = read_res.error};
+  }
+  Read_cursor cursor = {0};
+}
