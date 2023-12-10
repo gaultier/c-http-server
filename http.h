@@ -10,6 +10,8 @@ typedef enum {
   HTTP_METHOD_PATCH,
   HTTP_METHOD_HEAD,
   HTTP_METHOD_DELETE,
+  HTTP_METHOD_TRACE,
+  HTTP_METHOD_CONNECT,
 } Method;
 
 typedef struct {
@@ -76,6 +78,10 @@ static Request parse_request(Read_result read_res) {
       req.method = HTTP_METHOD_DELETE;
     } else if (read_cursor_match(&cursor, str_from_c("HEAD"))) {
       req.method = HTTP_METHOD_HEAD;
+    } else if (read_cursor_match(&cursor, str_from_c("CONNECT"))) {
+      req.method = HTTP_METHOD_CONNECT;
+    } else if (read_cursor_match(&cursor, str_from_c("TRACE"))) {
+      req.method = HTTP_METHOD_TRACE;
     } else {
       return (Request){.error = true};
     }
