@@ -1,8 +1,6 @@
 #pragma once
 #include "arena.h"
 
-#define carray_count(a) (sizeof(a)/sizeof((a)[0]))
-
 // --------------------------- Growable typed array
 
 #define Array(T) Array_##T

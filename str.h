@@ -44,7 +44,8 @@ __attribute__((warn_unused_result)) static Str str_from_c(char *s) {
 
 #define str_from_c_literal(s) ((Str){.data = (u8 *)s, .len = sizeof(s) - 1})
 
-__attribute__((warn_unused_result)) static u8 *ut_memrchr(u8 *s, u8 c, usize n) {
+__attribute__((warn_unused_result)) static u8 *ut_memrchr(u8 *s, u8 c,
+                                                          usize n) {
   pg_assert(s != NULL);
   pg_assert(n > 0);
 
@@ -351,6 +352,21 @@ __attribute__((warn_unused_result)) static char *str_to_c(Str s, Arena *arena) {
   return c_str;
 }
 
+__attribute__((warn_unused_result)) static bool str_rcontains(Str haystack,
+                                                              Str needle) {
+  if (needle.len > haystack.len)
+    return false;
+
+  for (isize i = (isize)haystack.len - (isize)needle.len; i >= 0; i--) {
+    const Str to_search = str_advance(haystack, (usize)i);
+
+    if (str_ends_with(haystack, needle)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 __attribute__((warn_unused_result)) static Read_result
 ut_file_read_all(char *path, Arena *arena) {
   const int fd = open(path, O_RDONLY);
@@ -374,6 +390,28 @@ ut_file_read_all(char *path, Arena *arena) {
   Read_result res = ut_read_all_from_fd(fd, sb_new((usize)st.st_size, arena));
   close(fd);
   return res;
+}
+
+__attribute__((warn_unused_result)) static Read_result
+ut_read_from_fd_until(int fd, Str_builder sb, Str needle) {
+  pg_assert(fd > 0);
+
+  bool found = false;
+  while (sb_space(sb) > 0 && !(found = str_rcontains(sb_build(sb), needle))) {
+    pg_assert(sb.len <= sb.cap);
+
+    const i64 read_bytes = read(fd, sb_end_c(sb), sb_space(sb));
+    if (read_bytes == -1)
+      return (Read_result){.error = errno};
+    if (read_bytes == 0)
+      return (Read_result){.error = EINVAL}; // TODO: retry?
+
+    sb = sb_assume_appended_n(sb, (usize)read_bytes);
+    pg_assert(sb.len <= sb.cap);
+  }
+
+  return (found) ? (Read_result){.content = sb_build(sb)}
+                 : (Read_result){.error = true};
 }
 
 __attribute__((warn_unused_result)) static Read_result
@@ -424,8 +462,8 @@ struct Mem_profile {
 };
 
 // TODO: Maybe use varints to reduce the size.
-__attribute__((warn_unused_result)) static usize ut_record_call_stack(usize *dst,
-                                                                    usize cap) {
+__attribute__((warn_unused_result)) static usize
+ut_record_call_stack(usize *dst, usize cap) {
   usize *rbp = __builtin_frame_address(0);
 
   usize len = 0;
@@ -472,8 +510,8 @@ static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
     Mem_record *r = &profile->records.data[i];
 
     if (r->call_stack.len == call_stack_len &&
-        memcmp(r->call_stack.data, call_stack, call_stack_len * sizeof(usize)) ==
-            0) {
+        memcmp(r->call_stack.data, call_stack,
+               call_stack_len * sizeof(usize)) == 0) {
       // Found an existing record, update it.
       r->alloc_objects += objects_count;
       r->alloc_space += bytes_count;
@@ -489,8 +527,8 @@ static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
       .alloc_space = bytes_count,
       .in_use_objects = objects_count,
       .in_use_space = bytes_count,
-      .call_stack = array_make_from_slice(usize, call_stack, (u32)call_stack_len,
-                                          &profile->arena),
+      .call_stack = array_make_from_slice(usize, call_stack,
+                                          (u32)call_stack_len, &profile->arena),
   };
 
   *array_push(&profile->records, &profile->arena) = record;

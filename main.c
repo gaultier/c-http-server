@@ -14,8 +14,9 @@ static void worker(int client_socket) {
   Arena arena = arena_new(4 * KiB, NULL);
 
   Str_builder in_buffer = sb_new(2 * KiB, &arena);
-  const Read_result read_res = ut_read_all_from_fd(client_socket, in_buffer);
-  Request req = parse_request(read_res);
+  const Read_result read_res =
+      ut_read_from_fd_until(client_socket, in_buffer, str_from_c("\r\n\r\n"));
+  const Request req = parse_request(read_res);
   if (req.error) {
     return;
   }
@@ -29,6 +30,11 @@ static void worker(int client_socket) {
 int main() {
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
   assert(server_socket >= 0);
+
+  {
+    int val = 1;
+    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+  }
 
   const uint16_t port = 4096;
   const uint16_t net_port = (uint16_t)__builtin_bswap16(port);
