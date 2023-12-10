@@ -88,7 +88,3 @@ int main() {
     }
   }
 }
-
-#ifdef FREESTANDING
-void _start() { exit(main()); }
-#endif
