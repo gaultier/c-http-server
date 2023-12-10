@@ -3,6 +3,7 @@
 #include "str.h"
 
 #include <netinet/in.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -13,7 +14,18 @@ static Response handler(Request req, Arena *arena) {
   };
 }
 
+static void worker_signal_handler(int signo) {
+  if (signo == SIGALRM)
+    abort();
+}
+
 static void worker(int client_socket) {
+  const struct sigaction action = {.sa_handler = worker_signal_handler};
+  assert(sigaction(SIGALRM, &action, NULL) != -1);
+
+  const struct itimerval timer = {.it_value = {.tv_sec = 10}};
+  pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
+
   Arena arena = arena_new(4 * KiB, NULL);
 
   Str_builder in_buffer = sb_new(1 * KiB, &arena);
