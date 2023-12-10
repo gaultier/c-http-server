@@ -20,9 +20,11 @@ static void worker_signal_handler(int signo) {
 }
 
 static void worker(int client_socket) {
+  // Abort on SIGALRM
   const struct sigaction action = {.sa_handler = worker_signal_handler};
   assert(sigaction(SIGALRM, &action, NULL) != -1);
 
+  // Send SIGALRM on timer expiration to implement worker timeout.
   const struct itimerval timer = {.it_value = {.tv_sec = 10}};
   pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
 
