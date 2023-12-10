@@ -3,5 +3,4 @@
 -Wextra
 -Wpadded 
 -Wconversion 
---target=armv6-linux-none
 
