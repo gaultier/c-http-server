@@ -391,7 +391,7 @@ __attribute__((warn_unused_result)) static bool str_rcontains(Str haystack,
   for (isize i = (isize)haystack.len - (isize)needle.len; i >= 0; i--) {
     const Str to_search = str_advance(haystack, (usize)i);
 
-    if (str_ends_with(haystack, needle)) {
+    if (str_ends_with(to_search, needle)) {
       return true;
     }
   }
