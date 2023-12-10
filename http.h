@@ -36,7 +36,7 @@ typedef struct {
 // TODO: Store headers.
 static bool parse_headers(Read_cursor *cursor) {
   while (!read_cursor_is_at_end(*cursor)) {
-    const Str key = read_cursor_match_until_excl(cursor, ':');
+    const Str key = read_cursor_match_until_excl_char(cursor, ':');
     if (str_is_empty(key)) {
       return true;
     }
@@ -44,7 +44,7 @@ static bool parse_headers(Read_cursor *cursor) {
     pg_assert(read_cursor_match(cursor, str_from_c(":")));
 
     // TODO: Add `read_cursor_match_until_excl` with a string needle.
-    const Str value = read_cursor_match_until_excl(cursor, '\r');
+    const Str value = read_cursor_match_until_excl_char(cursor, '\r');
     if (str_is_empty(value)) {
       return false;
     }
@@ -84,7 +84,7 @@ static Request parse_request(Read_result read_res) {
     return (Request){.error = true};
   }
 
-  const Str url = read_cursor_match_until_excl(&cursor, ' ');
+  const Str url = read_cursor_match_until_excl_char(&cursor, ' ');
   if (str_is_empty(url)) {
     return (Request){.error = true};
   }

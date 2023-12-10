@@ -30,7 +30,7 @@ static bool read_cursor_match(Read_cursor *self, Str needle) {
   return false;
 }
 
-static Str read_cursor_match_until_excl(Read_cursor *self, u8 c) {
+static Str read_cursor_match_until_excl_char(Read_cursor *self, u8 c) {
   const Str remaining = cursor_read_remaining(*self);
   Str_split_result split = str_split(remaining, c);
   if (split.found) {
