@@ -3,7 +3,7 @@
 
 #define fd_puts(fd, msg)                                                       \
   do {                                                                         \
-    write(fd, msg, sizeof(msg));                                               \
+    write(fd, msg, sizeof(msg)-1);                                               \
   } while (0)
 
 static Response handler(Request req) { return (Response){.status = 200}; }
@@ -11,7 +11,7 @@ static Response handler(Request req) { return (Response){.status = 200}; }
 static void worker(int client_socket) {
   Request req = {0}; // TODO
   const Response res = handler(req);
-  write(client_socket, "Hello!", 6);
+  fd_puts(client_socket, "HTTP/1.1 200 OK\r\nContent-Length:6\r\n\r\nHello!");
 
   return;
 }
