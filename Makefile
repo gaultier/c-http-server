@@ -3,13 +3,13 @@ SRC := main.c sys.h http.h
 CC = clang
 
 # Assume clang for cross compilation.
-MY_CFLAGS := -Wall -Wextra -Wpadded -Wconversion -std=c99 --target=armv6-linux-none -static -g3 -fuse-ld=lld -nostdlib -mfloat-abi=hard -march=armv6
+MY_CFLAGS_COMMON := -Wall -Wextra -Wpadded -Wconversion -std=c99 -static -g3
 
 main: $(SRC)
-	$(CC) $(MY_CFLAGS) main.c -o main -Ofast -march=armv6
+	$(CC) $(MY_CFLAGS_COMMON) main.c -o main -Ofast
 
 main_debug: $(SRC)
-	$(CC) $(MY_CFLAGS) main.c -o main_debug -O0
+	$(CC) $(MY_CFLAGS_COMMON) main.c -o main_debug -O0
 
 all: main main_debug
 

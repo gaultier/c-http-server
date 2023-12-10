@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef FREESTANDING
 typedef int ssize_t;
 typedef unsigned size_t;
 typedef unsigned char uint8_t;
@@ -134,7 +135,7 @@ static int socket(int domain, int type, int protocol) {
 }
 
 #define SYS_BIND 282
-struct sockaddr {
+struct sockaddr_in {
   uint16_t sin_family, sin_port;
   uint32_t sin_addr;
   uint8_t sin_zero[8];
@@ -156,12 +157,23 @@ static int accept(int sockfd, struct sockaddr *restrict addr,
 }
 
 #define NULL 0
-#define stdin 0
-#define stdout 1
-#define stderr 2
 
 #define SYS_FORK 2
 static int fork(void) { return __syscall0(SYS_FORK); }
 
 #define SYS_CLOSE 6
 static int close(int fd) { return __syscall1(SYS_CLOSE, fd); }
+
+#else 
+  #include <unistd.h>
+  #include <sys/socket.h>
+  #include <stdint.h>
+  #include <assert.h>
+  #include <netinet/in.h>
+  #include <stdlib.h>
+#endif
+
+
+#define FD_STDIN 0
+#define FD_STDOUT 1
+#define FD_STDERR 2
