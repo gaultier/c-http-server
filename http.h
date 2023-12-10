@@ -43,6 +43,7 @@ static bool parse_headers(Read_cursor *cursor) {
 
     pg_assert(read_cursor_match(cursor, str_from_c(":")));
 
+    // TODO: Add `read_cursor_match_until_excl` with a string needle.
     const Str value = read_cursor_match_until_excl(cursor, '\r');
     if (str_is_empty(value)) {
       return false;
