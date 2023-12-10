@@ -1,12 +1,10 @@
 #include "arena.h"
 #include "http.h"
 #include "str.h"
-#include "sys.h"
 
-#define fd_puts(fd, msg)                                                       \
-  do {                                                                         \
-    write(fd, msg, sizeof(msg) - 1);                                           \
-  } while (0)
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 static Response handler(Request req, Arena *arena) {
   return (Response){
@@ -64,18 +62,18 @@ int main() {
   assert(listen(server_socket, backlog) == 0);
   // ssize_t write_n = write(1, "Hello", 5);
 
-  fd_puts(FD_STDERR, "Listening to: 0.0.0.0:4096\n");
+  fprintf(stderr, "Listening to: 0.0.0.0:4096\n");
 
   for (;;) {
     const int client_socket = accept(server_socket, NULL, 0);
     if (client_socket <= 0) {
-      fd_puts(FD_STDERR, "Failed to accept(2)\n");
+      fprintf(stderr, "Failed to accept(2)\n");
       continue;
     }
 
     const int pid = fork();
     if (pid == -1) {
-      fd_puts(FD_STDERR, "Failed to fork(2)\n");
+      fprintf(stderr, "Failed to fork(2)\n");
       close(client_socket);
       continue;
     }

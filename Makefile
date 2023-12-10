@@ -1,4 +1,4 @@
-SRC := main.c sys.h http.h array.h arena.h str.h
+SRC := main.c http.h array.h arena.h str.h
 
 # Assume clang for cross compilation.
 MY_CFLAGS_COMMON := -Wall -Wextra -Wpadded -Wconversion -Wno-gnu-alignof-expression -Wno-unused-function -std=c99 -g3
