@@ -91,13 +91,3 @@ Array_struct(u32);
 Array_struct(u64);
 Array_struct(usize);
 Array_struct(isize);
-
-// ----------------------
-
-// #define list_append(_list, _new)                                               \
-//   do {                                                                         \
-//     List *list = (List *)_list;                                                \
-//     List *new = (List *)_new;                                                  \
-//     List *last = list->last ? list->last : list;                               \
-//     list->last = last->next = new;                                             \
-//   } while (0)

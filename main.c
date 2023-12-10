@@ -8,12 +8,17 @@
     write(fd, msg, sizeof(msg) - 1);                                           \
   } while (0)
 
-static Response handler(Request req) { return (Response){.status = 200}; }
+static Response handler(Request req, Arena *arena) {
+  return (Response){
+      .status = 200,
+      .body = str_clone(req.path, arena),
+  };
+}
 
 static void worker(int client_socket) {
   Arena arena = arena_new(4 * KiB, NULL);
 
-  Str_builder in_buffer = sb_new(2 * KiB, &arena);
+  Str_builder in_buffer = sb_new(1 * KiB, &arena);
   const Read_result read_res =
       ut_read_from_fd_until(client_socket, in_buffer, str_from_c("\r\n\r\n"));
   const Request req = parse_request(read_res);
@@ -21,8 +26,9 @@ static void worker(int client_socket) {
     return;
   }
 
-  const Response res = handler(req);
-  fd_puts(client_socket, "HTTP/1.1 200 OK\r\nContent-Length:6\r\n\r\nHello!");
+  const Response res = handler(req, &arena);
+  const Str res_str = response_to_str(res, &arena);
+  write(client_socket, res_str.data, res_str.len);
 
   return;
 }
