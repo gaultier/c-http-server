@@ -605,3 +605,15 @@ static void mem_profile_write(Mem_profile *profile, FILE *out) {
 
   fflush(out);
 }
+
+__attribute__((warn_unused_result)) static int ut_write_all(int fd, Str s) {
+  Str remaining = s;
+  while (!str_is_empty(remaining)) {
+    ssize_t write_n = write(fd, remaining.data, remaining.len);
+    if (write_n == -1)
+      return errno;
+
+    remaining = str_advance(remaining, (usize)write_n);
+  }
+  return 0;
+}

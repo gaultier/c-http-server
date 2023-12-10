@@ -28,7 +28,8 @@ static void worker(int client_socket) {
 
   const Response res = handler(req, &arena);
   const Str res_str = response_to_str(res, &arena);
-  write(client_socket, res_str.data, res_str.len);
+  int _err = ut_write_all(client_socket, res_str);
+  pg_unused(_err); // Nothing to do.
 
   return;
 }
