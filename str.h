@@ -156,6 +156,20 @@ str_contains_element(Str haystack, u8 needle) {
   return false;
 }
 
+__attribute__((warn_unused_result)) static isize str_find(Str haystack,
+                                                        Str needle) {
+  if (needle.len > haystack.len)
+    return -1;
+
+  for (usize i = 0; i < haystack.len - needle.len; i++) {
+    Str remaining = str_advance(haystack, i);
+    if (str_starts_with(remaining, needle)) {
+      return (isize)i;
+    }
+  }
+  return -1;
+}
+
 typedef struct {
   Str left, right;
   usize found_pos;

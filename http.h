@@ -43,12 +43,13 @@ static bool parse_headers(Read_cursor *cursor) {
 
     pg_assert(read_cursor_match(cursor, str_from_c(":")));
 
-    // TODO: Add `read_cursor_match_until_excl` with a string needle.
-    const Str value = read_cursor_match_until_excl_char(cursor, '\r');
+    const Str value = read_cursor_match_until_excl(cursor, str_from_c("\r\n"));
     if (str_is_empty(value)) {
       return false;
     }
     pg_assert(read_cursor_match(cursor, str_from_c("\r\n")));
+
+    // TODO: Left-trim value.
   }
 
   return true;
