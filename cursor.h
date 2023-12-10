@@ -30,7 +30,7 @@ static bool read_cursor_match(Read_cursor *self, Str needle) {
   return false;
 }
 
-static bool read_cursor_match_any(Read_cursor *self, Str *needles,
+static bool read_cursor_match_any(Read_cursor *self, const Str *needles,
                                   usize needles_len) {
   for (usize i = 0; i < needles_len; i++) {
     if (read_cursor_match(self, needles[i])) {
@@ -38,4 +38,14 @@ static bool read_cursor_match_any(Read_cursor *self, Str *needles,
     }
   }
   return false;
+}
+
+static Str read_cursor_match_until_excl(Read_cursor *self, u8 c) {
+  const Str remaining = cursor_read_remaining(*self);
+  for (usize i = 0; i < remaining.len; i++) {
+    if (remaining.data[i] == c) {
+      return str_advance(remaining, i);
+    }
+  }
+  return (Str){0};
 }

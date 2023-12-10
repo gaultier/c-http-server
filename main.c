@@ -1,15 +1,25 @@
+#include "arena.h"
 #include "http.h"
+#include "str.h"
 #include "sys.h"
 
 #define fd_puts(fd, msg)                                                       \
   do {                                                                         \
-    write(fd, msg, sizeof(msg)-1);                                               \
+    write(fd, msg, sizeof(msg) - 1);                                           \
   } while (0)
 
 static Response handler(Request req) { return (Response){.status = 200}; }
 
 static void worker(int client_socket) {
-  Request req = {0}; // TODO
+  Arena arena = arena_new(4 * KiB, NULL);
+
+  Str_builder in_buffer = sb_new(2 * KiB, &arena);
+  const Read_result read_res = ut_read_all_from_fd(client_socket, in_buffer);
+  Request req = parse_request(read_res);
+  if (req.error) {
+    return;
+  }
+
   const Response res = handler(req);
   fd_puts(client_socket, "HTTP/1.1 200 OK\r\nContent-Length:6\r\n\r\nHello!");
 

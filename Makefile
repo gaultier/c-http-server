@@ -4,10 +4,10 @@ SRC := main.c sys.h http.h array.h arena.h str.h
 MY_CFLAGS_COMMON := -Wall -Wextra -Wpadded -Wconversion -std=c99 -static -g3
 
 main: $(SRC)
-	$(CC) $(MY_CFLAGS_COMMON) main.c -o main -Ofast
+	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) main.c -o main -Ofast
 
 main_debug: $(SRC)
-	$(CC) $(MY_CFLAGS_COMMON) main.c -o main_debug -O0
+	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) main.c -o main_debug -O0
 
 all: main main_debug
 
