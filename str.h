@@ -157,7 +157,7 @@ str_contains_element(Str haystack, u8 needle) {
 }
 
 __attribute__((warn_unused_result)) static isize str_find(Str haystack,
-                                                        Str needle) {
+                                                          Str needle) {
   if (needle.len > haystack.len)
     return -1;
 
@@ -168,6 +168,15 @@ __attribute__((warn_unused_result)) static isize str_find(Str haystack,
     }
   }
   return -1;
+}
+
+__attribute__((warn_unused_result)) static Str str_trim_left(Str s, u8 c) {
+  Str remaining = s;
+  while (str_first(remaining) == c) {
+    remaining = str_advance(remaining, 1);
+  }
+
+  return remaining;
 }
 
 typedef struct {

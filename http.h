@@ -45,10 +45,15 @@ parse_headers(Read_cursor *cursor) {
 
     pg_assert(read_cursor_match(cursor, str_from_c(":")));
 
-    const Str value = read_cursor_match_until_excl(cursor, str_from_c("\r\n"));
+    Str value = read_cursor_match_until_excl(cursor, str_from_c("\r\n"));
     if (str_is_empty(value)) {
       return false;
     }
+    value = str_trim_left(value, ' ');
+
+    printf("key='%.*s' value='%.*s'\n", (int)key.len, key.data, (int)value.len,
+           value.data);
+
     pg_assert(read_cursor_match(cursor, str_from_c("\r\n")));
 
     // TODO: Left-trim value.
