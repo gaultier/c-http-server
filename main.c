@@ -1,4 +1,5 @@
 #include "sys.h"
+#include "http.h"
 
 #define fd_puts(fd, msg)                                                       \
   do {                                                                         \

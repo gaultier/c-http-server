@@ -1,4 +1,4 @@
-SRC := main.c sys.h http.h
+SRC := main.c sys.h http.h array.h arena.h str.h
 
 # Assume clang for cross compilation.
 MY_CFLAGS_COMMON := -Wall -Wextra -Wpadded -Wconversion -std=c99 -static -g3
