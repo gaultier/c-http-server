@@ -1,12 +1,16 @@
-#include "sys.h"
 #include "http.h"
+#include "sys.h"
 
 #define fd_puts(fd, msg)                                                       \
   do {                                                                         \
     write(fd, msg, sizeof(msg));                                               \
   } while (0)
 
-static void handle_connection(int client_socket) {
+static Response handler(Request req) { return (Response){.status = 200}; }
+
+static void worker(int client_socket) {
+  Request req = {0}; // TODO
+  const Response res = handler(req);
   write(client_socket, "Hello!", 6);
 
   return;
@@ -23,7 +27,7 @@ int main() {
       .sin_family = AF_INET,
       .sin_port = net_port,
   };
-  assert(bind(server_socket,(void*) &addr, sizeof(addr)) == 0);
+  assert(bind(server_socket, (void *)&addr, sizeof(addr)) == 0);
 
   // Will anyways probably be capped to 128 by the kernel depending on the
   // version (see man page).
@@ -48,18 +52,14 @@ int main() {
     }
 
     if (pid == 0) { // Child.
-      handle_connection(client_socket);
+      worker(client_socket);
       exit(0);
     } else { // Parent.
       close(client_socket);
     }
   }
-
 }
-
 
 #ifdef FREESTANDING
-void _start() {
-  exit(main());
-}
+void _start() { exit(main()); }
 #endif
