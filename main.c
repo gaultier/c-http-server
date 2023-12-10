@@ -33,7 +33,13 @@ int main() {
 
   {
     int val = 1;
-    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+    assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val,
+                      sizeof(val)) != -1);
+  }
+  {
+    int val = 1;
+    assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &val,
+                      sizeof(val)) != -1);
   }
 
   const uint16_t port = 4096;

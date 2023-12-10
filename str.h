@@ -102,6 +102,14 @@ __attribute__((warn_unused_result)) static u8 str_first(Str s) {
   return s.len > 0 ? s.data[0] : 0;
 }
 
+__attribute__((warn_unused_result)) static bool str_starts_with(Str haystack,
+                                                                Str needle) {
+  if (needle.len > haystack.len)
+    return false;
+
+  return memcmp(haystack.data, needle.data, needle.len) == 0;
+}
+
 __attribute__((warn_unused_result)) static bool str_ends_with(Str haystack,
                                                               Str needle) {
   if (needle.len > haystack.len)

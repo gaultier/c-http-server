@@ -33,6 +33,26 @@ typedef struct {
   Str body;
 } Response;
 
+// TODO: Store headers.
+static bool parse_headers(Read_cursor *cursor) {
+  while (!read_cursor_is_at_end(*cursor)) {
+    const Str key = read_cursor_match_until_excl(cursor, ':');
+    if (str_is_empty(key)) {
+      return true;
+    }
+
+    pg_assert(read_cursor_match(cursor, str_from_c(":")));
+
+    const Str value = read_cursor_match_until_excl(cursor, '\r');
+    if (str_is_empty(value)) {
+      return false;
+    }
+    pg_assert(read_cursor_match(cursor, str_from_c("\r\n")));
+  }
+
+  return true;
+}
+
 static Request parse_request(Read_result read_res) {
   if (read_res.error) {
     return (Request){.error = read_res.error};
@@ -69,7 +89,11 @@ static Request parse_request(Read_result read_res) {
   }
   // TODO: Parse url.
 
-  if (!read_cursor_match(&cursor, str_from_c("HTTP/1.1\r\n"))) {
+  if (!read_cursor_match(&cursor, str_from_c(" HTTP/1.1\r\n"))) {
+    return (Request){.error = true};
+  }
+
+  if (!parse_headers(&cursor)) {
     return (Request){.error = true};
   }
 

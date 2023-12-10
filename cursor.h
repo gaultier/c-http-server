@@ -22,30 +22,20 @@ static bool read_cursor_match(Read_cursor *self, Str needle) {
     return false;
 
   const Str remaining = cursor_read_remaining(*self);
-  if (str_eq(remaining, needle)) {
-    self->s = str_advance(remaining, needle.len);
+  if (str_starts_with(remaining, needle)) {
+    self->pos += needle.len;
     return true;
   }
 
   return false;
 }
 
-static bool read_cursor_match_any(Read_cursor *self, const Str *needles,
-                                  usize needles_len) {
-  for (usize i = 0; i < needles_len; i++) {
-    if (read_cursor_match(self, needles[i])) {
-      return true;
-    }
-  }
-  return false;
-}
-
 static Str read_cursor_match_until_excl(Read_cursor *self, u8 c) {
   const Str remaining = cursor_read_remaining(*self);
-  for (usize i = 0; i < remaining.len; i++) {
-    if (remaining.data[i] == c) {
-      return str_advance(remaining, i);
-    }
+  Str_split_result split = str_split(remaining, c);
+  if (split.found) {
+    self->pos += split.found_pos;
+    return split.left;
   }
   return (Str){0};
 }
