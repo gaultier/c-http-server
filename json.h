@@ -536,7 +536,13 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     const Str out = json_format(j, &arena);
 
-    fprintf(stderr, "%.*s", out.len, out.data);
-    pg_assert(str_eq_c(out, "{\n}"));
+    pg_assert(str_eq_c(out, "{\n"
+                            "  \"foo\": 12,\n"
+                            "  \"bar\": [\n"
+                            "    true,\n"
+                            "    false\n"
+                            "  ],\n"
+                            "  \"baz\": \"hello\"\n"
+                            "}"));
   }
 }
