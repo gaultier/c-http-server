@@ -14,11 +14,6 @@ typedef enum {
 
 typedef struct Json Json;
 
-typedef struct {
-
-  u32 len;
-} Json_array;
-
 struct Json {
   Json_kind kind;
   pg_pad(4);
@@ -26,7 +21,7 @@ struct Json {
     double number;
     bool boolean;
     Str string;
-    Json *next;
+    Json *lhs, *rhs;
     // TODO: Array, Object
   } v;
 };
@@ -95,21 +90,29 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena);
 static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
   pg_assert(read_cursor_next(cursor) == '[');
 
+  Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+  *j = (Json){.kind = JSON_KIND_ARRAY};
+  Json *it = j;
+
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_next(cursor);
     if (c == ']') {
-      Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
-      *j = (Json){
-          .kind = JSON_KIND_ARRAY,
-          .v.next = NULL,
-      }; // FIXME
       return j;
     } else {
       Json *child = json_parse(cursor, arena);
       if (child == NULL)
         return NULL;
 
-      // TODO: Linked list.
+      const bool comma = read_cursor_match_char(cursor, ',');
+      if (comma && read_cursor_peek(*cursor) == ']') {
+        return NULL;
+      }
+
+      j->v.lhs = j->v.lhs == NULL ? child : j->v.lhs;
+      it = it == NULL ? child : it;
+
+      it->v.rhs = child;
+      it = child;
     }
   }
 
@@ -220,6 +223,7 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_ARRAY);
-    pg_assert(j->v.next == NULL);
+    pg_assert(j->v.lhs == NULL);
+    pg_assert(j->v.rhs == NULL);
   }
 }
