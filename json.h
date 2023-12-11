@@ -205,8 +205,6 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
   if (j == NULL)
     return sb;
 
-  sb = sb_append_many(sb, ' ', indent, arena);
-
   switch (j->kind) {
   case JSON_KIND_BOOL:
     return sb_append(sb, str_from_c(j->v.boolean ? "true" : "false"), arena);
@@ -214,41 +212,48 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     // TODO: Format double
     return sb_append_u64(sb, (u64)j->v.number, arena);
   case JSON_KIND_STRING:
-    return sb_append(sb, j->v.string, arena);
+    sb = sb_append_char(sb, '"', arena);
+    sb = sb_append(sb, j->v.string, arena);
+    return sb_append_char(sb, '"', arena);
   case JSON_KIND_ARRAY: {
-    sb = sb_append_char(sb, '[', arena);
+    sb = sb_append(sb, str_from_c("[\n"), arena);
 
     Json *it = j->v.children;
     while (it != NULL) {
+      sb = sb_append_many(sb, ' ', indent + 2, arena);
       sb = _json_format_do(it, sb, indent + 2, arena);
       it = it->next;
 
       if (it)
-        sb = sb_append_char(sb, ',', arena);
+        sb = sb_append(sb, str_from_c(",\n"), arena);
     }
-    sb = sb_append_char(sb, ']', arena);
+
+    sb = sb_append_char(sb, '\n', arena);
+    sb = sb_append_many(sb, ' ', indent, arena);
+    sb = sb_append(sb, str_from_c("]"), arena);
     return sb;
   }
   case JSON_KIND_OBJECT: {
-    sb = sb_append_char(sb, '{', arena);
+    sb = sb_append(sb, str_from_c("{\n"), arena);
 
     Json *it = j->v.children;
     while (it != NULL) {
-      sb = sb_append_char(sb, '"', arena);
+      sb = sb_append_many(sb, ' ', indent + 2, arena);
       sb = _json_format_do(it, sb, indent + 2, arena);
-      sb = sb_append_char(sb, '"', arena);
 
       it = it->next;
 
-      sb = sb_append_char(sb, ':', arena);
+      sb = sb_append(sb, str_from_c(": "), arena);
 
       sb = _json_format_do(it, sb, indent + 2, arena);
       it = it->next;
 
       if (it)
-        sb = sb_append_char(sb, ',', arena);
+        sb = sb_append(sb, str_from_c(",\n"), arena);
     }
-    sb = sb_append_char(sb, '}', arena);
+    sb = sb_append_char(sb, '\n', arena);
+    sb = sb_append_many(sb, ' ', indent, arena);
+    sb = sb_append(sb, str_from_c("}"), arena);
     return sb;
   }
   default:
@@ -531,6 +536,7 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     const Str out = json_format(j, &arena);
 
+    fprintf(stderr, "%.*s", out.len, out.data);
     pg_assert(str_eq_c(out, "{\n}"));
   }
 }
