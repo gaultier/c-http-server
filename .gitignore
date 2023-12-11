@@ -3,3 +3,4 @@ main
 main_debug
 main_debug_san
 profile.heap
+.gdb_history
