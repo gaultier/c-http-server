@@ -30,6 +30,9 @@ struct Json {
 };
 
 static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_peek(*cursor) == '-' ||
+            str_is_digit(read_cursor_peek(*cursor)));
+
   double num = 0;
 
   const double sign = read_cursor_match_char(cursor, '-') ? -1 : 1;
@@ -49,6 +52,9 @@ static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
 }
 
 static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_peek(*cursor) == 't' ||
+            read_cursor_peek(*cursor) == 'f');
+
   bool val = false;
   if (read_cursor_match(cursor, str_from_c("true")))
     val = true;
@@ -62,6 +68,24 @@ static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
   return j;
 }
 
+static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_next(cursor) == '"');
+  Str s = {.data = read_cursor_remaining(*cursor).data};
+
+  while (!read_cursor_is_at_end(*cursor)) {
+    const u8 c = read_cursor_next(cursor);
+    if (c == '"') {
+      Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+      *j = (Json){.kind = JSON_KIND_STRING, .v.string = s};
+      return j;
+    } else {
+      s.len += 1;
+    }
+  }
+
+  return NULL;
+}
+
 static Json *json_parse(Read_cursor *cursor, Arena *arena) {
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
@@ -70,6 +94,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
       return json_parse_number(cursor, arena);
     } else if (c == 't' || c == 'f') {
       return json_parse_bool(cursor, arena);
+    } else if (c == '"') {
+      return json_parse_string(cursor, arena);
     } else {
       return NULL;
     }
@@ -130,5 +156,16 @@ static void test_json_parse() {
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_BOOL);
     pg_assert(j->v.boolean == false);
+  }
+  {
+    const Str in = str_from_c("\"foo\"");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_STRING);
+    pg_assert(str_eq_c(j->v.string, "foo"));
   }
 }
