@@ -28,10 +28,10 @@ static void worker_signal_handler(int signo) {
 static void worker(int client_socket) {
   // Abort on SIGALRM
   const struct sigaction action = {.sa_handler = worker_signal_handler};
-  assert(sigaction(SIGALRM, &action, NULL) != -1);
+  pg_assert(sigaction(SIGALRM, &action, NULL) != -1);
 
   // Send SIGALRM on timer expiration to implement worker timeout.
-  const struct itimerval timer = {.it_value = {.tv_sec = 100000}};
+  const struct itimerval timer = {.it_value = {.tv_sec = 10}};
   pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
 
   Arena arena = arena_new(64 * KiB, NULL);
@@ -81,20 +81,21 @@ static void worker(int client_socket) {
 }
 
 int main() {
-  test_json_parse();
+  const struct sigaction sa = {.sa_flags = SA_NOCLDWAIT};
+  pg_assert(sigaction(SIGCHLD, &sa, NULL) != -1);
 
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
-  assert(server_socket >= 0);
+  pg_assert(server_socket >= 0);
 
   {
     int val = 1;
-    assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val,
-                      sizeof(val)) != -1);
+    pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val,
+                         sizeof(val)) != -1);
   }
   {
     int val = 1;
-    assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &val,
-                      sizeof(val)) != -1);
+    pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &val,
+                         sizeof(val)) != -1);
   }
 
   const uint16_t port = 4096;
@@ -104,12 +105,12 @@ int main() {
       .sin_family = AF_INET,
       .sin_port = net_port,
   };
-  assert(bind(server_socket, (void *)&addr, sizeof(addr)) == 0);
+  pg_assert(bind(server_socket, (void *)&addr, sizeof(addr)) == 0);
 
   // Will anyways probably be capped to 128 by the kernel depending on the
   // version (see man page).
   const int backlog = 4096;
-  assert(listen(server_socket, backlog) == 0);
+  pg_assert(listen(server_socket, backlog) == 0);
   // ssize_t write_n = write(1, "Hello", 5);
 
   fprintf(stderr, "Listening to: 0.0.0.0:4096\n");
