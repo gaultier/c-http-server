@@ -216,6 +216,10 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     sb = sb_append(sb, j->v.string, arena);
     return sb_append_char(sb, '"', arena);
   case JSON_KIND_ARRAY: {
+    if (!j->v.children) {
+      return sb_append(sb, str_from_c("[]"), arena);
+    }
+
     sb = sb_append(sb, str_from_c("[\n"), arena);
 
     Json *it = j->v.children;
@@ -234,6 +238,10 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     return sb;
   }
   case JSON_KIND_OBJECT: {
+    if (!j->v.children) {
+      return sb_append(sb, str_from_c("{}"), arena);
+    }
+
     sb = sb_append(sb, str_from_c("{\n"), arena);
 
     Json *it = j->v.children;
