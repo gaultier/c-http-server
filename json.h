@@ -21,10 +21,12 @@ typedef struct {
 
 struct Json {
   Json_kind kind;
+  pg_pad(4);
   union {
     double number;
     bool boolean;
     Str string;
+    Json *next;
     // TODO: Array, Object
   } v;
 };
@@ -88,6 +90,32 @@ static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
+static Json *json_parse(Read_cursor *cursor, Arena *arena);
+
+static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_next(cursor) == '[');
+
+  while (!read_cursor_is_at_end(*cursor)) {
+    const u8 c = read_cursor_next(cursor);
+    if (c == ']') {
+      Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+      *j = (Json){
+          .kind = JSON_KIND_ARRAY,
+          .v.next = NULL,
+      }; // FIXME
+      return j;
+    } else {
+      Json *child = json_parse(cursor, arena);
+      if (child == NULL)
+        return NULL;
+
+      // TODO: Linked list.
+    }
+  }
+
+  return NULL;
+}
+
 static Json *json_parse(Read_cursor *cursor, Arena *arena) {
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
@@ -98,6 +126,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
       return json_parse_bool(cursor, arena);
     } else if (c == '"') {
       return json_parse_string(cursor, arena);
+    } else if (c == '[') {
+      return json_parse_array(cursor, arena);
     } else {
       return NULL;
     }
@@ -180,5 +210,16 @@ static void test_json_parse() {
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo\\\"bar"));
+  }
+  {
+    const Str in = str_from_c("[]");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_ARRAY);
+    pg_assert(j->v.next == NULL);
   }
 }
