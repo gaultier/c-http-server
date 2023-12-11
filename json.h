@@ -14,6 +14,10 @@ typedef enum {
 
 typedef struct Json Json;
 
+typedef struct {
+  Json *lhs, *rhs;
+} Json_list;
+
 struct Json {
   Json_kind kind;
   pg_pad(4);
@@ -21,7 +25,7 @@ struct Json {
     double number;
     bool boolean;
     Str string;
-    Json *lhs, *rhs;
+    Json_list list;
     // TODO: Array, Object
   } v;
 };
@@ -36,11 +40,12 @@ static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
 
   // TODO: 1e3.
   while (!read_cursor_is_at_end(*cursor)) {
-    const u8 c = read_cursor_next(cursor);
+    const u8 c = read_cursor_peek(*cursor);
     if (!str_is_digit(c))
       break;
 
     num = num * 10 + (c - '0');
+    read_cursor_next(cursor);
   }
 
   Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
@@ -95,8 +100,9 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
   Json *it = j;
 
   while (!read_cursor_is_at_end(*cursor)) {
-    const u8 c = read_cursor_next(cursor);
+    const u8 c = read_cursor_peek(*cursor);
     if (c == ']') {
+      read_cursor_next(cursor);
       return j;
     } else {
       Json *child = json_parse(cursor, arena);
@@ -108,10 +114,10 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
         return NULL;
       }
 
-      j->v.lhs = j->v.lhs == NULL ? child : j->v.lhs;
+      j->v.list.lhs = j->v.list.lhs == NULL ? child : j->v.list.lhs;
       it = it == NULL ? child : it;
 
-      it->v.rhs = child;
+      it->v.list.rhs = child;
       it = child;
     }
   }
@@ -223,7 +229,23 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_ARRAY);
-    pg_assert(j->v.lhs == NULL);
-    pg_assert(j->v.rhs == NULL);
+    pg_assert(j->v.list.lhs == NULL);
+    pg_assert(j->v.list.rhs == NULL);
+  }
+  {
+    const Str in = str_from_c("[12]");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_ARRAY);
+    pg_assert(j->v.list.rhs != NULL);
+    pg_assert(j->v.list.lhs != NULL);
+
+    Json *child = j->v.list.lhs;
+    pg_assert(child->kind = JSON_KIND_NUMBER);
+    pg_assert(child->v.number == 12);
   }
 }
