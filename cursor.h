@@ -49,3 +49,11 @@ static Str read_cursor_match_until_excl_char(Read_cursor *self, u8 c) {
   }
   return (Str){0};
 }
+
+static u8 read_cursor_peek(Read_cursor self) {
+  return read_cursor_is_at_end(self) ? 0 : self.s.data[self.pos];
+}
+
+static u8 read_cursor_next(Read_cursor *self) {
+  return read_cursor_is_at_end(*self) ? 0 : self->s.data[self->pos++];
+}

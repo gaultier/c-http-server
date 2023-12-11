@@ -1,6 +1,7 @@
 #include "arena.h"
 #include "http.h"
 #include "str.h"
+#include "json.h"
 
 #include <netinet/in.h>
 #include <signal.h>
@@ -47,6 +48,8 @@ static void worker(int client_socket) {
 }
 
 int main() {
+  test_json_parse();
+
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
   assert(server_socket >= 0);
 

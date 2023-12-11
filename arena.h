@@ -88,6 +88,14 @@ arena_new(usize cap, Mem_profile *profile) {
   return arena;
 }
 
+__attribute__((warn_unused_result)) static Arena arena_from_mem(u8 *mem,
+                                                                usize mem_len) {
+  return (Arena){
+      .start = mem,
+      .end = mem + mem_len,
+  };
+}
+
 static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
                                      usize bytes_count);
 
