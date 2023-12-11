@@ -625,3 +625,11 @@ __attribute__((warn_unused_result)) static bool str_is_digit(u8 c) {
 __attribute__((warn_unused_result)) static bool str_is_space(u8 c) {
   return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
+
+__attribute__((warn_unused_result)) static Str_builder
+sb_append_many(Str_builder sb, u8 c, usize count, Arena *arena) {
+  for (usize i = 0; i < count; i++) {
+    sb = sb_append_char(sb, c, arena);
+  }
+  return sb;
+}

@@ -200,6 +200,71 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
+__attribute__((warn_unused_result)) static Str_builder
+_json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
+  if (j == NULL)
+    return sb;
+
+  sb = sb_append_many(sb, ' ', indent, arena);
+
+  switch (j->kind) {
+  case JSON_KIND_BOOL:
+    return sb_append(sb, str_from_c(j->v.boolean ? "true" : "false"), arena);
+  case JSON_KIND_NUMBER:
+    // TODO: Format double
+    return sb_append_u64(sb, (u64)j->v.number, arena);
+  case JSON_KIND_STRING:
+    return sb_append(sb, j->v.string, arena);
+  case JSON_KIND_ARRAY: {
+    sb = sb_append_char(sb, '[', arena);
+
+    Json *it = j->v.children;
+    while (it != NULL) {
+      sb = _json_format_do(it, sb, indent + 2, arena);
+      it = it->next;
+
+      if (it)
+        sb = sb_append_char(sb, ',', arena);
+    }
+    sb = sb_append_char(sb, ']', arena);
+    return sb;
+  }
+  case JSON_KIND_OBJECT: {
+    sb = sb_append_char(sb, '{', arena);
+
+    Json *it = j->v.children;
+    while (it != NULL) {
+      sb = sb_append_char(sb, '"', arena);
+      sb = _json_format_do(it, sb, indent + 2, arena);
+      sb = sb_append_char(sb, '"', arena);
+
+      it = it->next;
+
+      sb = sb_append_char(sb, ':', arena);
+
+      sb = _json_format_do(it, sb, indent + 2, arena);
+      it = it->next;
+
+      if (it)
+        sb = sb_append_char(sb, ',', arena);
+    }
+    sb = sb_append_char(sb, '}', arena);
+    return sb;
+  }
+  default:
+    pg_assert(0 && "unreachable");
+  }
+}
+
+__attribute__((warn_unused_result)) static Str json_format(const Json *j,
+                                                           Arena *arena) {
+  if (j == NULL)
+    return (Str){0};
+
+  Str_builder sb = sb_new(1024, arena);
+  return sb_build(_json_format_do(j, sb, 0, arena));
+}
+
 static void test_json_parse() {
   {
     const Str in = str_from_c("xxx");
@@ -455,5 +520,17 @@ static void test_json_parse() {
     pg_assert(third_value != NULL);
     pg_assert(third_value->kind = JSON_KIND_STRING);
     pg_assert(str_eq_c(third_value->v.string, "hello"));
+  }
+  {
+    const Str in = str_from_c(
+        "{ \"foo\": 12, \"bar\" : [true, false], \"baz\": \"hello\" }");
+    u8 mem[4096] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    const Str out = json_format(j, &arena);
+
+    pg_assert(str_eq_c(out, "{\n}"));
   }
 }
