@@ -22,7 +22,6 @@ struct Json {
     bool boolean;
     Str string;
     Json *children;
-    // TODO: Array, Object
   } v;
   Json *next;
 };
