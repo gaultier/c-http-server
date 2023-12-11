@@ -1,7 +1,7 @@
 #include "arena.h"
 #include "http.h"
-#include "str.h"
 #include "json.h"
+#include "str.h"
 
 #include <netinet/in.h>
 #include <signal.h>
@@ -34,7 +34,7 @@ static void worker(int client_socket) {
   Str_builder in_buffer = sb_new(1 * KiB, &arena);
   const Read_result read_res =
       ut_read_from_fd_until(client_socket, in_buffer, str_from_c("\r\n\r\n"));
-  const Request req = parse_request(read_res);
+  const Request req = parse_request(read_res, &arena);
   if (req.error) {
     return;
   }

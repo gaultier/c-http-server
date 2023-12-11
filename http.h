@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arena.h"
 #include "cursor.h"
 #include "str.h"
 
@@ -14,9 +15,11 @@ typedef enum {
   HTTP_METHOD_CONNECT,
 } Method;
 
-typedef struct {
+typedef struct Header Header;
+struct Header {
   Str key, value;
-} Header;
+  Header *next;
+};
 
 // TODO: headers.
 typedef struct {
@@ -25,42 +28,53 @@ typedef struct {
   Str path;
   Str params;
   Str body;
+  Header *headers;
 } Request;
 
 // TODO: headers.
 typedef struct {
   u16 status;
   pg_pad(6);
+  Header *headers;
   Str body;
 } Response;
 
 // TODO: Store headers.
-__attribute__((warn_unused_result)) static bool
-parse_headers(Read_cursor *cursor) {
+__attribute__((warn_unused_result)) static Request
+parse_headers(Read_cursor *cursor, Request req, Arena *arena) {
+  Header *it = NULL;
+
   while (!read_cursor_is_at_end(*cursor)) {
     const Str key = read_cursor_match_until_excl_char(cursor, ':');
     if (str_is_empty(key)) {
-      return true;
+      return req;
     }
 
     pg_assert(read_cursor_match(cursor, str_from_c(":")));
 
     Str value = read_cursor_match_until_excl(cursor, str_from_c("\r\n"));
     if (str_is_empty(value)) {
-      return false;
+      return (Request){.error = true};
     }
     value = str_trim_left(value, ' ');
 
     pg_assert(read_cursor_match(cursor, str_from_c("\r\n")));
 
-    // TODO: Left-trim value.
+    Header *header = arena_alloc(arena, sizeof(Header), _Alignof(Header), 1);
+    *header = (Header){.key = key, .value = value};
+
+    if (req.headers == NULL) {
+      it = req.headers = header;
+    }
+
+    it = it->next = header;
   }
 
-  return true;
+  return req;
 }
 
 __attribute__((warn_unused_result)) static Request
-parse_request(Read_result read_res) {
+parse_request(Read_result read_res, Arena *arena) {
   if (read_res.error) {
     return (Request){.error = read_res.error};
   }
@@ -105,7 +119,8 @@ parse_request(Read_result read_res) {
     return (Request){.error = true};
   }
 
-  if (!parse_headers(&cursor)) {
+  req = parse_headers(&cursor, req, arena);
+  if (req.error) {
     return (Request){.error = true};
   }
 
