@@ -78,6 +78,8 @@ static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
       Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
       *j = (Json){.kind = JSON_KIND_STRING, .v.string = s};
       return j;
+    } else if (c == 92 /* Backslash */ && read_cursor_match_char(cursor, '"')) {
+      s.len += 2;
     } else {
       s.len += 1;
     }
@@ -167,5 +169,16 @@ static void test_json_parse() {
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo"));
+  }
+  {
+    const Str in = str_from_c("\"foo\\\"bar\"");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_STRING);
+    pg_assert(str_eq_c(j->v.string, "foo\\\"bar"));
   }
 }
