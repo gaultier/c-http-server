@@ -34,9 +34,36 @@ static void worker(int client_socket) {
   Str_builder in_buffer = sb_new(1 * KiB, &arena);
   const Read_result read_res =
       ut_read_from_fd_until(client_socket, in_buffer, str_from_c("\r\n\r\n"));
-  const Request req = parse_request(read_res, &arena);
+  Request req = parse_request(read_res, &arena);
   if (req.error) {
     return;
+  }
+
+  // Read body.
+  {
+    const Header *content_length_header =
+        http_find_header(req.headers, str_from_c("Content-Length"));
+    if (content_length_header) {
+      const usize announced_length = str_to_u64(content_length_header->value);
+      const isize body_sep_pos =
+          str_find(read_res.content, str_from_c("\r\n\r\n"));
+
+      Str_builder body = sb_new(announced_length, &arena);
+      if (body_sep_pos != -1) {
+        pg_assert(body_sep_pos >= 4);
+        Str body_already_read =
+            str_advance(read_res.content, (usize)body_sep_pos + 4);
+
+        pg_assert(body_already_read.len <= announced_length);
+
+        body = sb_append(body, body_already_read, &arena);
+      }
+
+      const Read_result body_read_res = sb_read_to_fill(body, client_socket);
+      pg_assert(!body_read_res.error);
+
+      req.body = body_read_res.content;
+    }
   }
 
   const Response res = handler(req, &arena);

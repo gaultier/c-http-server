@@ -164,3 +164,16 @@ __attribute__((warn_unused_result)) static Str response_to_str(Response res,
 
   return sb_build(out);
 }
+
+__attribute__((warn_unused_result)) static Header *
+http_find_header(Header *headers, Str key) {
+  Header *it = headers;
+  while (it != NULL) {
+    // TODO: Case-insensitive check.
+    if (str_eq(it->key, key))
+      return it;
+
+    it = it->next;
+  }
+  return NULL;
+}

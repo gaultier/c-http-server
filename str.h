@@ -291,7 +291,7 @@ sb_assume_appended_n(Str_builder sb, usize more) {
 
 __attribute__((warn_unused_result)) static Str sb_build(Str_builder sb) {
   pg_assert(sb.data);
-  pg_assert(sb.cap > 0);
+  pg_assert(sb.cap >= 0);
   pg_assert(sb.data[sb.len] == 0);
 
   return (Str){.data = sb.data, .len = sb.len};
@@ -632,4 +632,45 @@ sb_append_many(Str_builder sb, u8 c, usize count, Arena *arena) {
     sb = sb_append_char(sb, c, arena);
   }
   return sb;
+}
+
+__attribute__((warn_unused_result)) static usize str_to_u64(Str s) {
+  usize num = 0;
+
+  for (usize i = 0; i < s.len; i++) {
+    const u8 c = s.data[i];
+
+    if (str_is_digit(c)) {
+      num = num * 10 + (c - '0');
+    } else {
+      return 0;
+    }
+  }
+
+  return num;
+}
+
+__attribute__((warn_unused_result)) static Str_builder
+sb_remaining(Str_builder sb) {
+  return (Str_builder){
+      .len = sb_space(sb),
+      .data = sb.data + sb_space(sb),
+      .cap = sb_space(sb),
+  };
+}
+
+__attribute__((warn_unused_result)) static Read_result
+sb_read_to_fill(Str_builder sb, int fd) {
+  while (sb_space(sb)) {
+    isize read_bytes = read(fd, sb_remaining(sb).data, sb_space(sb));
+    if (read_bytes == -1)
+      return (Read_result){.error = errno};
+
+    if (read_bytes == 0)
+      return (Read_result){.error = EINVAL}; // TODO: retry?
+
+    sb = sb_assume_appended_n(sb, (usize)read_bytes);
+    pg_assert(sb.len <= sb.cap);
+  }
+  return (Read_result){.content = sb_build(sb)};
 }
