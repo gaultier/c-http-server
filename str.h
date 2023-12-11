@@ -427,8 +427,7 @@ __attribute__((warn_unused_result)) static Read_result
 ut_read_from_fd_until(int fd, Str_builder sb, Str needle) {
   pg_assert(fd > 0);
 
-  bool found = false;
-  while (sb_space(sb) > 0 && !(found = str_rcontains(sb_build(sb), needle))) {
+  while (sb_space(sb) > 0) {
     pg_assert(sb.len <= sb.cap);
 
     const i64 read_bytes = read(fd, sb_end_c(sb), sb_space(sb));
@@ -439,10 +438,12 @@ ut_read_from_fd_until(int fd, Str_builder sb, Str needle) {
 
     sb = sb_assume_appended_n(sb, (usize)read_bytes);
     pg_assert(sb.len <= sb.cap);
+
+    if (str_rcontains(sb_build(sb), needle))
+      return (Read_result){.content = sb_build(sb)};
   }
 
-  return (found) ? (Read_result){.content = sb_build(sb)}
-                 : (Read_result){.error = true};
+  return (Read_result){.error = true};
 }
 
 __attribute__((warn_unused_result)) static Read_result
@@ -654,7 +655,7 @@ __attribute__((warn_unused_result)) static Str_builder
 sb_remaining(Str_builder sb) {
   return (Str_builder){
       .len = sb_space(sb),
-      .data = sb.data + sb_space(sb),
+      .data = sb.data + sb.len,
       .cap = sb_space(sb),
   };
 }

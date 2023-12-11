@@ -1,4 +1,5 @@
 #include "arena.h"
+#include "cursor.h"
 #include "http.h"
 #include "json.h"
 #include "str.h"
@@ -9,10 +10,14 @@
 #include <unistd.h>
 
 static Response handler(Request req, Arena *arena) {
-  return (Response){
-      .status = 200,
-      .body = str_clone(req.path, arena),
-  };
+  Read_cursor cursor = {.s = req.body};
+  Json *j = json_parse(&cursor, arena);
+  if (!j) {
+    return (Response){.status = 400};
+  }
+
+  const Str result = json_format(j, arena);
+  return (Response){.status = 200, .body = result};
 }
 
 static void worker_signal_handler(int signo) {
@@ -26,10 +31,10 @@ static void worker(int client_socket) {
   assert(sigaction(SIGALRM, &action, NULL) != -1);
 
   // Send SIGALRM on timer expiration to implement worker timeout.
-  const struct itimerval timer = {.it_value = {.tv_sec = 10}};
+  const struct itimerval timer = {.it_value = {.tv_sec = 100000}};
   pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
 
-  Arena arena = arena_new(4 * KiB, NULL);
+  Arena arena = arena_new(64 * KiB, NULL);
 
   Str_builder in_buffer = sb_new(1 * KiB, &arena);
   const Read_result read_res =
@@ -48,7 +53,8 @@ static void worker(int client_socket) {
       const isize body_sep_pos =
           str_find(read_res.content, str_from_c("\r\n\r\n"));
 
-      Str_builder body = sb_new(announced_length, &arena);
+      Str_builder body =
+          sb_new(announced_length == 0 ? 16 * KiB : announced_length, &arena);
       if (body_sep_pos != -1) {
         pg_assert(body_sep_pos >= 4);
         Str body_already_read =

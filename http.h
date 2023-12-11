@@ -45,6 +45,9 @@ parse_headers(Read_cursor *cursor, Request req, Arena *arena) {
   Header *it = NULL;
 
   while (!read_cursor_is_at_end(*cursor)) {
+    if (read_cursor_match(cursor, str_from_c("\r\n")))
+      return req;
+
     const Str key = read_cursor_match_until_excl_char(cursor, ':');
     if (str_is_empty(key)) {
       return req;
@@ -124,10 +127,6 @@ parse_request(Read_result read_res, Arena *arena) {
     return (Request){.error = true};
   }
 
-  if (!read_cursor_match(&cursor, str_from_c("\r\n"))) {
-    return (Request){.error = true};
-  }
-
   return req;
 }
 
@@ -135,6 +134,8 @@ __attribute__((warn_unused_result)) static Str status_to_str(u16 status) {
   switch (status) {
   case 200:
     return str_from_c("200 OK");
+  case 400:
+    return str_from_c("400 Bad Request");
   case 404:
     return str_from_c("404 Not Found");
   case 500:
