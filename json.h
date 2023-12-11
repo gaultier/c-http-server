@@ -14,6 +14,7 @@ typedef enum {
 
 typedef struct Json Json;
 
+// TODO: Contemplate ways to shrink the size of this struct.
 struct Json {
   Json_kind kind;
   pg_pad(4);
