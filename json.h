@@ -125,6 +125,52 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
+static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_next(cursor) == '{');
+
+  Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+  *j = (Json){.kind = JSON_KIND_OBJECT};
+  Json *it = NULL;
+
+  while (!read_cursor_is_at_end(*cursor)) {
+    const u8 c = read_cursor_peek(*cursor);
+    if (c == '}') {
+      read_cursor_next(cursor);
+      return j;
+    } else if (str_is_space(c)) {
+      read_cursor_next(cursor);
+    } else {
+      Json *key = json_parse_string(cursor, arena);
+      if (key == NULL)
+        return NULL;
+
+      read_cursor_skip_many_spaces(cursor);
+
+      if (!read_cursor_match_char(cursor, ':'))
+        return NULL;
+
+      Json *value = json_parse(cursor, arena);
+      if (value == NULL)
+        return NULL;
+
+      const bool comma = read_cursor_match_char(cursor, ',');
+      if (comma && read_cursor_peek(*cursor) == '}')
+        return NULL;
+
+      j->v.children = j->v.children == NULL ? key : j->v.children;
+
+      if (it == NULL) {
+        it = key;
+      } else {
+        it = it->next = key;
+      }
+      it = it->next = value;
+    }
+  }
+
+  return NULL;
+}
+
 static Json *json_parse(Read_cursor *cursor, Arena *arena) {
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
@@ -137,6 +183,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
       return json_parse_string(cursor, arena);
     } else if (c == '[') {
       return json_parse_array(cursor, arena);
+    } else if (c == '{') {
+      return json_parse_object(cursor, arena);
     } else if (str_is_space(c)) {
       read_cursor_next(cursor);
     } else {

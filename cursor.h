@@ -69,3 +69,14 @@ static bool read_cursor_match_char(Read_cursor *self, u8 c) {
 
   return false;
 }
+
+static void read_cursor_skip_many_spaces(Read_cursor *self) {
+  while (!read_cursor_is_at_end(*self)) {
+    const u8 c = read_cursor_peek(*self);
+    if (str_is_space(c)) {
+      read_cursor_next(self);
+    } else {
+      return;
+    }
+  }
+}
