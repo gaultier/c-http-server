@@ -94,7 +94,7 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
 
   Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
   *j = (Json){.kind = JSON_KIND_ARRAY};
-  Json *it = j;
+  Json *it = NULL;
 
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
@@ -114,9 +114,11 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
       }
 
       j->v.children = j->v.children == NULL ? child : j->v.children;
-      it = it == NULL ? child : it;
-
-      it = it->next = child;
+      if (it == NULL) {
+        it = child;
+      } else {
+        it = it->next = child;
+      }
     }
   }
 
@@ -247,7 +249,7 @@ static void test_json_parse() {
     pg_assert(child != NULL);
     pg_assert(child->kind = JSON_KIND_NUMBER);
     pg_assert(child->v.number == 12);
-    pg_assert(child->next == child);
+    pg_assert(child->next == NULL);
   }
   {
     const Str in = str_from_c("[12,]");
@@ -273,11 +275,11 @@ static void test_json_parse() {
     pg_assert(first_child != NULL);
     pg_assert(first_child->kind = JSON_KIND_NUMBER);
     pg_assert(first_child->v.number == 12);
-    pg_assert(first_child->next != NULL);
 
     Json *second_child = first_child->next;
+    pg_assert(second_child != NULL);
     pg_assert(second_child->kind = JSON_KIND_NUMBER);
-    pg_assert(second_child->v.number == 12);
-    pg_assert(second_child->next == first_child);
+    pg_assert(second_child->v.number == 3);
+    pg_assert(second_child->next == NULL);
   }
 }
