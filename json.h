@@ -248,4 +248,13 @@ static void test_json_parse() {
     pg_assert(child->kind = JSON_KIND_NUMBER);
     pg_assert(child->v.number == 12);
   }
+  {
+    const Str in = str_from_c("[12,]");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
 }
