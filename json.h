@@ -68,7 +68,9 @@ static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
 }
 
 static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
-  pg_assert(read_cursor_next(cursor) == '"');
+  if (read_cursor_next(cursor) != '"')
+    return NULL;
+
   Str s = {.data = read_cursor_remaining(*cursor).data};
 
   while (!read_cursor_is_at_end(*cursor)) {
@@ -109,6 +111,8 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
         return NULL;
 
       const bool comma = read_cursor_match_char(cursor, ',');
+      read_cursor_skip_many_spaces(cursor);
+
       if (comma && read_cursor_peek(*cursor) == ']') {
         return NULL;
       }
@@ -154,6 +158,8 @@ static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
         return NULL;
 
       const bool comma = read_cursor_match_char(cursor, ',');
+      read_cursor_skip_many_spaces(cursor);
+
       if (comma && read_cursor_peek(*cursor) == '}')
         return NULL;
 
@@ -300,7 +306,7 @@ static void test_json_parse() {
     pg_assert(child->next == NULL);
   }
   {
-    const Str in = str_from_c("[12,]");
+    const Str in = str_from_c("[12, ]");
     u8 mem[256] = {0};
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
@@ -329,5 +335,125 @@ static void test_json_parse() {
     pg_assert(second_child->kind = JSON_KIND_NUMBER);
     pg_assert(second_child->v.number == 3);
     pg_assert(second_child->next == NULL);
+  }
+  {
+    const Str in = str_from_c("{}");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_OBJECT);
+    pg_assert(j->v.children == NULL);
+    pg_assert(j->v.children == NULL);
+  }
+  {
+    const Str in = str_from_c(" { \"abc\" : 12 } ");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_OBJECT);
+    pg_assert(j->next == NULL);
+
+    Json *key = j->v.children;
+    pg_assert(key != NULL);
+    pg_assert(key->kind = JSON_KIND_STRING);
+    pg_assert(str_eq_c(key->v.string, "abc"));
+
+    Json *value = key->next;
+    pg_assert(value != NULL);
+    pg_assert(value->v.number == 12);
+    pg_assert(value->next == NULL);
+  }
+  {
+    const Str in = str_from_c("{ \"abc\" : 12, }");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c("{ 13 : 12 }");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c("{ : 12 }");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c("{  12 }");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c(
+        "{ \"foo\": 12, \"bar\" : [true, false], \"baz\": \"hello\" }");
+    u8 mem[1024] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_ARRAY);
+    pg_assert(j->next == NULL);
+
+    Json *first_key = j->v.children;
+    pg_assert(first_key != NULL);
+    pg_assert(first_key->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(first_key->v.string, "foo"));
+
+    Json *first_value = first_key->next;
+    pg_assert(first_value != NULL);
+    pg_assert(first_value->kind = JSON_KIND_NUMBER);
+    pg_assert(first_value->v.number == 12);
+
+    Json *second_key = first_value->next;
+    pg_assert(second_key != NULL);
+    pg_assert(second_key->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(second_key->v.string, "bar"));
+
+    Json *second_value = second_key->next;
+    pg_assert(second_value != NULL);
+    pg_assert(second_value->kind = JSON_KIND_ARRAY);
+
+    Json *first_array_element = second_value->v.children;
+    pg_assert(first_array_element != NULL);
+    pg_assert(first_array_element->kind = JSON_KIND_BOOL);
+    pg_assert(first_array_element->v.boolean == true);
+
+    Json *second_array_element = first_array_element->next;
+    pg_assert(second_array_element != NULL);
+    pg_assert(second_array_element->kind = JSON_KIND_BOOL);
+    pg_assert(second_array_element->v.boolean == false);
+
+    Json *third_key = second_value->next;
+    pg_assert(third_key != NULL);
+    pg_assert(third_key->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(third_key->v.string, "baz"));
+
+    Json *third_value = third_key->next;
+    pg_assert(third_value != NULL);
+    pg_assert(third_value->kind = JSON_KIND_STRING);
+    pg_assert(str_eq_c(third_value->v.string, "hello"));
   }
 }
