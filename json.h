@@ -14,10 +14,6 @@ typedef enum {
 
 typedef struct Json Json;
 
-typedef struct {
-  Json *lhs, *rhs;
-} Json_list;
-
 struct Json {
   Json_kind kind;
   pg_pad(4);
@@ -25,9 +21,10 @@ struct Json {
     double number;
     bool boolean;
     Str string;
-    Json_list list;
+    Json *children;
     // TODO: Array, Object
   } v;
+  Json *next;
 };
 
 static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
@@ -104,6 +101,8 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
     if (c == ']') {
       read_cursor_next(cursor);
       return j;
+    } else if (str_is_space(c)) {
+      read_cursor_next(cursor);
     } else {
       Json *child = json_parse(cursor, arena);
       if (child == NULL)
@@ -114,11 +113,10 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
         return NULL;
       }
 
-      j->v.list.lhs = j->v.list.lhs == NULL ? child : j->v.list.lhs;
+      j->v.children = j->v.children == NULL ? child : j->v.children;
       it = it == NULL ? child : it;
 
-      it->v.list.rhs = child;
-      it = child;
+      it = it->next = child;
     }
   }
 
@@ -137,6 +135,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
       return json_parse_string(cursor, arena);
     } else if (c == '[') {
       return json_parse_array(cursor, arena);
+    } else if (str_is_space(c)) {
+      read_cursor_next(cursor);
     } else {
       return NULL;
     }
@@ -229,11 +229,11 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_ARRAY);
-    pg_assert(j->v.list.lhs == NULL);
-    pg_assert(j->v.list.rhs == NULL);
+    pg_assert(j->v.children == NULL);
+    pg_assert(j->v.children == NULL);
   }
   {
-    const Str in = str_from_c("[12]");
+    const Str in = str_from_c(" [ 12 ] ");
     u8 mem[256] = {0};
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
@@ -241,12 +241,13 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_ARRAY);
-    pg_assert(j->v.list.rhs != NULL);
-    pg_assert(j->v.list.lhs != NULL);
+    pg_assert(j->next == NULL);
 
-    Json *child = j->v.list.lhs;
+    Json *child = j->v.children;
+    pg_assert(child != NULL);
     pg_assert(child->kind = JSON_KIND_NUMBER);
     pg_assert(child->v.number == 12);
+    pg_assert(child->next == child);
   }
   {
     const Str in = str_from_c("[12,]");
@@ -256,5 +257,27 @@ static void test_json_parse() {
 
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c("[12, 3]");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_ARRAY);
+    pg_assert(j->next == NULL);
+
+    Json *first_child = j->v.children;
+    pg_assert(first_child != NULL);
+    pg_assert(first_child->kind = JSON_KIND_NUMBER);
+    pg_assert(first_child->v.number == 12);
+    pg_assert(first_child->next != NULL);
+
+    Json *second_child = first_child->next;
+    pg_assert(second_child->kind = JSON_KIND_NUMBER);
+    pg_assert(second_child->v.number == 12);
+    pg_assert(second_child->next == first_child);
   }
 }

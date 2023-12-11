@@ -621,3 +621,7 @@ __attribute__((warn_unused_result)) static int ut_write_all(int fd, Str s) {
 __attribute__((warn_unused_result)) static bool str_is_digit(u8 c) {
   return '0' <= c && c <= '9';
 }
+
+__attribute__((warn_unused_result)) static bool str_is_space(u8 c) {
+  return c == ' ' || c == '\n' || c == '\r' || c == '\t';
+}
