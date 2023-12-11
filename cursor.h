@@ -57,3 +57,15 @@ static u8 read_cursor_peek(Read_cursor self) {
 static u8 read_cursor_next(Read_cursor *self) {
   return read_cursor_is_at_end(*self) ? 0 : self->s.data[self->pos++];
 }
+
+static bool read_cursor_match_char(Read_cursor *self, u8 c) {
+  if (read_cursor_is_at_end(*self))
+    return false;
+
+  if (read_cursor_peek(*self) == c) {
+    read_cursor_next(self);
+    return true;
+  }
+
+  return false;
+}

@@ -32,7 +32,7 @@ struct Json {
 static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
   double num = 0;
 
-  const double sign = (read_cursor_peek(*cursor) == '-') ? 1 : 1;
+  const double sign = read_cursor_match_char(cursor, '-') ? -1 : 1;
 
   // TODO: 1e3.
   while (!read_cursor_is_at_end(*cursor)) {
@@ -60,14 +60,26 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
 }
 
 static void test_json_parse() {
-  const Str in = str_from_c("123");
-  u8 mem[256] = {0};
-  Arena arena = arena_from_mem(mem, sizeof(mem));
+  {
+    const Str in = str_from_c("123");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
 
-  Read_cursor cursor = {.s = in};
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_NUMBER);
+    pg_assert(j->v.number == 123);
+  }
+  {
+    const Str in = str_from_c("-123");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
 
-  Json *j = json_parse(&cursor, &arena);
-  pg_assert(j != NULL);
-  pg_assert(j->kind = JSON_KIND_NUMBER);
-  pg_assert(j->v.number == (usize)123);
+    Json *j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind = JSON_KIND_NUMBER);
+    pg_assert(j->v.number == -123);
+  }
 }
