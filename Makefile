@@ -8,7 +8,7 @@ CC := clang
 all: main main_debug main_debug_san
 
 main: $(SRC)
-	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) $< -o $@ -Ofast -static
+	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) $< -o $@ -Ofast -static -march=native
 
 main_debug: $(SRC)
 	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) $< -o $@ -O0
