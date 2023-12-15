@@ -211,7 +211,8 @@ str_split(Str haystack, u8 needle) {
 __attribute__((warn_unused_result)) static Str_split_result
 str_rsplit(Str haystack, u8 needle) {
   pg_assert(haystack.data != NULL);
-  u8 *_Nullable const at = ut_memrchr(haystack.data, needle, haystack.len);
+  u8 *_Nullable const at =
+      ut_memrchr((u8 *_Nonnull)haystack.data, needle, haystack.len);
   if (at == NULL)
     return (Str_split_result){.left = haystack, .right = haystack};
 
@@ -257,8 +258,7 @@ sb_grow(Str_builder sb, usize more, Arena *_Nonnull arena) {
 __attribute__((warn_unused_result)) static u8 *_Nonnull sb_end_c(
     Str_builder sb) {
   pg_assert(sb.data != NULL);
-
-  return sb.data + sb.len;
+  return (u8 *_Nonnull)sb.data + sb.len;
 }
 
 __attribute__((warn_unused_result)) static Str_builder
