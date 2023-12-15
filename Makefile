@@ -14,6 +14,6 @@ main_debug: $(SRC)
 	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) $< -o $@ -O0
 
 main_debug_san: $(SRC)
-	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) -fsanitize=address,undefined $< -o $@ -O0
+	$(CC) $(MY_CFLAGS_COMMON) $(CFLAGS) $< -o $@ -O0 -fsanitize=address,undefined 
 
 .PHONY: all
