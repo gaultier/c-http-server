@@ -5,3 +5,4 @@ main_debug_san
 profile.heap
 .gdb_history
 fuzz_corpus
+fuzz_output
