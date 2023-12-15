@@ -1,10 +1,10 @@
 -std=c11
 -Weverything
 -Wno-unused-function
--Wno-c++98-compat
+-Wno-unused-macros
 -Wno-declaration-after-statement
 -Wno-nullability-extension
--Wno-unused-macros
 -Wno-unsafe-buffer-usage
 -Wno-disabled-macro-expansion
 -Wno-gnu-alignof-expression
+-fno-omit-frame-pointer
