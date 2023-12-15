@@ -15,19 +15,21 @@
 
 // String builder, like a dynamic array.
 typedef struct {
-  u8 *data;
+  u8 *_Nullable data;
   usize len;
   usize cap;
 } Str_builder;
 
 // String view, immutable.
 typedef struct {
-  u8 *data;
+  u8 *_Nullable data;
   usize len;
 } Str;
 Array_struct(Str);
 
 __attribute__((warn_unused_result)) static u32 str_count(Str s, u8 c) {
+  pg_assert(s.data);
+
   u32 res = 0;
 
   for (usize i = 0; i < s.len; i++) {
@@ -38,14 +40,12 @@ __attribute__((warn_unused_result)) static u32 str_count(Str s, u8 c) {
   return res;
 }
 
-__attribute__((warn_unused_result)) static Str str_from_c(char *s) {
+__attribute__((warn_unused_result)) static Str str_from_c(char *_Nonnull s) {
   return (Str){.data = (u8 *)s, .len = s == NULL ? 0 : strlen(s)};
 }
 
-#define str_from_c_literal(s) ((Str){.data = (u8 *)s, .len = sizeof(s) - 1})
-
-__attribute__((warn_unused_result)) static u8 *ut_memrchr(u8 *s, u8 c,
-                                                          usize n) {
+__attribute__((warn_unused_result)) static u8 *_Nullable ut_memrchr(
+    u8 *_Nonnull s, u8 c, usize n) {
   pg_assert(s != NULL);
   pg_assert(n > 0);
 
@@ -73,11 +73,13 @@ __attribute__((warn_unused_result)) static usize ut_next_power_of_two(usize n) {
   return n;
 }
 
-__attribute__((warn_unused_result)) static Str str_new(u8 *s, usize n) {
+__attribute__((warn_unused_result)) static Str str_new(u8 *_Nonnull s,
+                                                       usize n) {
   return (Str){.data = s, .len = n};
 }
 
-__attribute__((warn_unused_result)) static Str str_clone(Str s, Arena *arena) {
+__attribute__((warn_unused_result)) static Str
+str_clone(Str s, Arena *_Nonnull arena) {
   // Optimization: no alloc.
   if (s.len == 0)
     return s;
@@ -93,8 +95,11 @@ __attribute__((warn_unused_result)) static Str str_clone(Str s, Arena *arena) {
 }
 
 __attribute__((warn_unused_result)) static Str str_advance(Str s, usize n) {
+  pg_assert(s.data);
+
   if (n > s.len)
     return (Str){0};
+
   return (Str){.data = s.data + n, .len = s.len - n};
 }
 
@@ -119,8 +124,8 @@ __attribute__((warn_unused_result)) static bool str_ends_with(Str haystack,
   return memcmp(&haystack.data[start], needle.data, needle.len) == 0;
 }
 
-__attribute__((warn_unused_result)) static bool str_ends_with_c(Str haystack,
-                                                                char *needle) {
+__attribute__((warn_unused_result)) static bool
+str_ends_with_c(Str haystack, char *_Nonnull needle) {
   return str_ends_with(haystack, str_from_c(needle));
 }
 
@@ -143,7 +148,8 @@ __attribute__((warn_unused_result)) static bool str_eq(Str a, Str b) {
   return a.len == b.len && memcmp(a.data, b.data, a.len) == 0;
 }
 
-__attribute__((warn_unused_result)) static bool str_eq_c(Str a, char *b) {
+__attribute__((warn_unused_result)) static bool str_eq_c(Str a,
+                                                         char *_Nonnull b) {
   return str_eq(a, str_from_c(b));
 }
 
@@ -188,7 +194,7 @@ typedef struct {
 
 __attribute__((warn_unused_result)) static Str_split_result
 str_split(Str haystack, u8 needle) {
-  u8 *at = memchr(haystack.data, needle, haystack.len);
+  u8 *_Nullable const at = memchr(haystack.data, needle, haystack.len);
   if (at == NULL)
     return (Str_split_result){.left = haystack, .right = haystack};
 
@@ -204,7 +210,8 @@ str_split(Str haystack, u8 needle) {
 
 __attribute__((warn_unused_result)) static Str_split_result
 str_rsplit(Str haystack, u8 needle) {
-  u8 *at = ut_memrchr(haystack.data, needle, haystack.len);
+  pg_assert(haystack.data != NULL);
+  u8 *_Nullable const at = ut_memrchr(haystack.data, needle, haystack.len);
   if (at == NULL)
     return (Str_split_result){.left = haystack, .right = haystack};
 
@@ -225,7 +232,7 @@ __attribute__((warn_unused_result)) static usize sb_space(Str_builder sb) {
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_reserve_at_least(Str_builder sb, usize more, Arena *arena) {
+sb_grow(Str_builder sb, usize more, Arena *_Nonnull arena) {
   pg_assert(sb.len <= sb.cap);
 
   if (more <= sb_space(sb))
@@ -234,7 +241,7 @@ sb_reserve_at_least(Str_builder sb, usize more, Arena *arena) {
   usize new_cap = ut_next_power_of_two(sb.cap + more + 1 /* NUL terminator */);
   pg_assert(new_cap > sb.len);
 
-  u8 *new_data = arena_alloc(arena, sizeof(u8), _Alignof(u8), new_cap);
+  u8 *const new_data = arena_alloc(arena, sizeof(u8), _Alignof(u8), new_cap);
   pg_assert(new_data);
   pg_assert(sb.data);
 
@@ -247,37 +254,43 @@ sb_reserve_at_least(Str_builder sb, usize more, Arena *arena) {
   return (Str_builder){.len = sb.len, .cap = new_cap, .data = new_data};
 }
 
-__attribute__((warn_unused_result)) static u8 *sb_end_c(Str_builder sb) {
+__attribute__((warn_unused_result)) static u8 *_Nonnull sb_end_c(
+    Str_builder sb) {
+  pg_assert(sb.data != NULL);
+
   return sb.data + sb.len;
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_append(Str_builder sb, Str more, Arena *arena) {
-  sb = sb_reserve_at_least(sb, more.len, arena);
+sb_append(Str_builder sb, Str more, Arena *_Nonnull arena) {
+  sb = sb_grow(sb, more.len, arena);
 
   if (more.data)
     memmove(sb_end_c(sb), more.data, more.len);
 
+  pg_assert(sb.data);
   sb.data[sb.len + more.len] = 0;
   return (Str_builder){
       .len = sb.len + more.len, .data = sb.data, .cap = sb.cap};
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_append_c(Str_builder sb, char *more, Arena *arena) {
+sb_append_c(Str_builder sb, char *_Nonnull more, Arena *_Nonnull arena) {
   return sb_append(sb, str_from_c(more), arena);
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_append_char(Str_builder sb, u8 c, Arena *arena) {
-  sb = sb_reserve_at_least(sb, 1, arena);
+sb_append_char(Str_builder sb, u8 c, Arena *_Nonnull arena) {
+  sb = sb_grow(sb, 1, arena);
+  pg_assert(sb.data);
+
   sb.data[sb.len] = c;
   sb.data[sb.len + 1] = 0;
   return (Str_builder){.len = sb.len + 1, .data = sb.data, .cap = sb.cap};
 }
 
-__attribute__((warn_unused_result)) static Str_builder sb_new(usize initial_cap,
-                                                              Arena *arena) {
+__attribute__((warn_unused_result)) static Str_builder
+sb_new(usize initial_cap, Arena *_Nonnull arena) {
   return (Str_builder){
       .data = arena_alloc(arena, sizeof(u8), _Alignof(u8), initial_cap + 1),
       .cap = initial_cap + 1,
@@ -292,13 +305,14 @@ sb_assume_appended_n(Str_builder sb, usize more) {
 __attribute__((warn_unused_result)) static Str sb_build(Str_builder sb) {
   pg_assert(sb.data);
   pg_assert(sb.cap >= 0);
+  pg_assert(sb.data);
   pg_assert(sb.data[sb.len] == 0);
 
   return (Str){.data = sb.data, .len = sb.len};
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_append_u64(Str_builder sb, usize n, Arena *arena) {
+sb_append_u64(Str_builder sb, usize n, Arena *_Nonnull arena) {
   char tmp[25] = "";
   snprintf(tmp, sizeof(tmp) - 1, "%lu", n);
   return sb_append_c(sb, tmp, arena);
@@ -307,6 +321,7 @@ sb_append_u64(Str_builder sb, usize n, Arena *arena) {
 __attribute__((warn_unused_result)) static Str_builder
 sb_capitalize_at(Str_builder sb, usize pos) {
   pg_assert(pos < sb.len);
+  pg_assert(sb.data);
 
   if ('a' <= sb.data[pos] && sb.data[pos] <= 'z')
     sb.data[pos] -= 'a' - 'A';
@@ -314,8 +329,8 @@ sb_capitalize_at(Str_builder sb, usize pos) {
   return sb;
 }
 
-__attribute__((warn_unused_result)) static Str_builder sb_clone(Str src,
-                                                                Arena *arena) {
+__attribute__((warn_unused_result)) static Str_builder
+sb_clone(Str src, Arena *_Nonnull arena) {
   Str_builder res = sb_new(src.len, arena);
   pg_assert(res.data);
   pg_assert(src.len <= res.cap);
@@ -371,8 +386,11 @@ ut_read_all_from_fd(int fd, Str_builder sb) {
   return (Read_result){.content = sb_build(sb)};
 }
 
-__attribute__((warn_unused_result)) static char *str_to_c(Str s, Arena *arena) {
-  char *c_str = arena_alloc(arena, sizeof(u8), _Alignof(u8), s.len + 1);
+__attribute__((warn_unused_result)) static char *_Nonnull str_to_c(
+    Str s, Arena *_Nonnull arena) {
+  char *_Nonnull c_str =
+      arena_alloc(arena, sizeof(u8), _Alignof(u8), s.len + 1);
+
   if (s.data)
     memmove(c_str, s.data, s.len);
 
@@ -399,7 +417,7 @@ __attribute__((warn_unused_result)) static bool str_rcontains(Str haystack,
 }
 
 __attribute__((warn_unused_result)) static Read_result
-ut_file_read_all(char *path, Arena *arena) {
+ut_file_read_all(char *_Nonnull path, Arena *_Nonnull arena) {
   const int fd = open(path, O_RDONLY);
   if (fd == -1) {
     return (Read_result){.error = errno};
@@ -447,7 +465,7 @@ ut_read_from_fd_until(int fd, Str_builder sb, Str needle) {
 }
 
 __attribute__((warn_unused_result)) static Read_result
-ut_file_mmap(char *path) {
+ut_file_mmap(char *_Nonnull path) {
   const int fd = open(path, O_RDONLY);
   if (fd == -1) {
     return (Read_result){.error = errno};
@@ -495,7 +513,7 @@ struct Mem_profile {
 
 // TODO: Maybe use varints to reduce the size.
 __attribute__((warn_unused_result)) static usize
-ut_record_call_stack(usize *dst, usize cap) {
+ut_record_call_stack(usize *_Nonnull dst, usize cap) {
   usize *rbp = __builtin_frame_address(0);
 
   usize len = 0;
@@ -524,8 +542,8 @@ ut_record_call_stack(usize *dst, usize cap) {
   return len;
 }
 
-static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
-                                     usize bytes_count) {
+static void mem_profile_record_alloc(Mem_profile *_Nonnull profile,
+                                     usize objects_count, usize bytes_count) {
   // Record the call stack by stack walking.
   usize call_stack[64] = {0};
   usize call_stack_len = ut_record_call_stack(
@@ -539,6 +557,7 @@ static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
 
   // Upsert the record.
   for (usize i = 0; i < profile->records.len; i++) {
+    pg_assert(profile->records.data);
     Mem_record *r = &profile->records.data[i];
 
     if (r->call_stack.len == call_stack_len &&
@@ -566,7 +585,8 @@ static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
   *array_push(&profile->records, &profile->arena) = record;
 }
 
-static void mem_profile_write(Mem_profile *profile, FILE *out) {
+static void mem_profile_write(Mem_profile *_Nonnull profile,
+                              FILE *_Nonnull out) {
   // clang-format off
   // heap profile:    <in_use>:  <nbytes1> [   <space>:  <nbytes2>] @ heapprofile
   // <in_use>: <nbytes1> [<space>: <nbytes2>] @ <rip1> <rip2> <rip3> [...]
@@ -628,7 +648,7 @@ __attribute__((warn_unused_result)) static bool str_is_space(u8 c) {
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-sb_append_many(Str_builder sb, u8 c, usize count, Arena *arena) {
+sb_append_many(Str_builder sb, u8 c, usize count, Arena *_Nonnull arena) {
   for (usize i = 0; i < count; i++) {
     sb = sb_append_char(sb, c, arena);
   }

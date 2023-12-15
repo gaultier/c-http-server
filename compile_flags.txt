@@ -1,6 +1,7 @@
--std=c99
--Wall
--Wextra
--Wpadded 
--Wconversion 
-
+-std=c11
+-Weverything
+-Wno-unused-function
+-Wno-c++98-compat
+-Wno-declaration-after-statement
+-Wno-nullability-extension
+-Wno-unused-macros

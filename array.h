@@ -8,8 +8,8 @@
 #define Array_struct(T)                                                        \
   typedef struct {                                                             \
     u32 len, cap;                                                              \
-    T *data;                                                                   \
-  } Array(T);
+    T *_Nullable data;                                                         \
+  } Array(T)
 
 #define array_make(T, _len, _cap, _arena)                                      \
   (pg_assert(_len <= _cap),                                                    \
@@ -19,8 +19,9 @@
        .data = arena_alloc(_arena, sizeof(T), _Alignof(T), _cap),              \
    }))
 
-static void array_grow(u32 len, u32 *cap, void **data, u32 item_size,
-                       u32 item_align, Arena *arena) {
+static void array_grow(u32 len, u32 *_Nonnull cap,
+                       void *_Nullable *_Nonnull data, u32 item_size,
+                       u32 item_align, Arena *_Nonnull arena) {
   // Big initial capacity because resizing is costly in an arena.
   *cap = *cap == 0 ? 512 : *cap * 2;
   void *new_data = arena_alloc(arena, item_size, item_align, *cap);

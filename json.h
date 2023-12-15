@@ -201,11 +201,13 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-_json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
+json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
   if (j == NULL)
     return sb;
 
   switch (j->kind) {
+  case JSON_KIND_UNDEFINED:
+    pg_assert(0 && "unreachable");
   case JSON_KIND_BOOL:
     return sb_append(sb, str_from_c(j->v.boolean ? "true" : "false"), arena);
   case JSON_KIND_NUMBER:
@@ -225,7 +227,7 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     Json *it = j->v.children;
     while (it != NULL) {
       sb = sb_append_many(sb, ' ', indent + 2, arena);
-      sb = _json_format_do(it, sb, indent + 2, arena);
+      sb = json_format_do(it, sb, indent + 2, arena);
       it = it->next;
 
       if (it)
@@ -247,13 +249,13 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     Json *it = j->v.children;
     while (it != NULL) {
       sb = sb_append_many(sb, ' ', indent + 2, arena);
-      sb = _json_format_do(it, sb, indent + 2, arena);
+      sb = json_format_do(it, sb, indent + 2, arena);
 
       it = it->next;
 
       sb = sb_append(sb, str_from_c(": "), arena);
 
-      sb = _json_format_do(it, sb, indent + 2, arena);
+      sb = json_format_do(it, sb, indent + 2, arena);
       it = it->next;
 
       if (it)
@@ -264,8 +266,6 @@ _json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
     sb = sb_append(sb, str_from_c("}"), arena);
     return sb;
   }
-  default:
-    pg_assert(0 && "unreachable");
   }
 }
 
@@ -275,10 +275,10 @@ __attribute__((warn_unused_result)) static Str json_format(const Json *j,
     return (Str){0};
 
   Str_builder sb = sb_new(1024, arena);
-  return sb_build(_json_format_do(j, sb, 0, arena));
+  return sb_build(json_format_do(j, sb, 0, arena));
 }
 
-static void test_json_parse() {
+static void test_json_parse(void) {
   {
     const Str in = str_from_c("xxx");
     u8 mem[256] = {0};
@@ -297,7 +297,7 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_NUMBER);
-    pg_assert(j->v.number == 123);
+    pg_assert((u64)j->v.number == 123);
   }
   {
     const Str in = str_from_c("-123");
@@ -308,7 +308,7 @@ static void test_json_parse() {
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind = JSON_KIND_NUMBER);
-    pg_assert(j->v.number == -123);
+    pg_assert((i64)j->v.number == -123);
   }
   {
     const Str in = str_from_c("true");
@@ -380,7 +380,7 @@ static void test_json_parse() {
     Json *child = j->v.children;
     pg_assert(child != NULL);
     pg_assert(child->kind = JSON_KIND_NUMBER);
-    pg_assert(child->v.number == 12);
+    pg_assert((u64)child->v.number == 12);
     pg_assert(child->next == NULL);
   }
   {
@@ -406,12 +406,12 @@ static void test_json_parse() {
     Json *first_child = j->v.children;
     pg_assert(first_child != NULL);
     pg_assert(first_child->kind = JSON_KIND_NUMBER);
-    pg_assert(first_child->v.number == 12);
+    pg_assert((u64)first_child->v.number == 12);
 
     Json *second_child = first_child->next;
     pg_assert(second_child != NULL);
     pg_assert(second_child->kind = JSON_KIND_NUMBER);
-    pg_assert(second_child->v.number == 3);
+    pg_assert((u64)second_child->v.number == 3);
     pg_assert(second_child->next == NULL);
   }
   {
@@ -439,12 +439,12 @@ static void test_json_parse() {
 
     Json *key = j->v.children;
     pg_assert(key != NULL);
-    pg_assert(key->kind = JSON_KIND_STRING);
+    pg_assert(key->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(key->v.string, "abc"));
 
     Json *value = key->next;
     pg_assert(value != NULL);
-    pg_assert(value->v.number == 12);
+    pg_assert((u64)value->v.number == 12);
     pg_assert(value->next == NULL);
   }
   {
@@ -492,7 +492,7 @@ static void test_json_parse() {
 
     Json *j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
-    pg_assert(j->kind = JSON_KIND_ARRAY);
+    pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->next == NULL);
 
     Json *first_key = j->v.children;
@@ -503,7 +503,7 @@ static void test_json_parse() {
     Json *first_value = first_key->next;
     pg_assert(first_value != NULL);
     pg_assert(first_value->kind = JSON_KIND_NUMBER);
-    pg_assert(first_value->v.number == 12);
+    pg_assert((u64)first_value->v.number == 12);
 
     Json *second_key = first_value->next;
     pg_assert(second_key != NULL);

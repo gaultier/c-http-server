@@ -32,7 +32,7 @@ static void worker(int client_socket) {
 
   // Send SIGALRM on timer expiration to implement worker timeout.
   const struct itimerval timer = {.it_value = {.tv_sec = 10}};
-  pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
+  pg_assert(setitimer(0 /* ITIMER_REAL */, &timer, NULL) == 0);
 
   Arena arena = arena_new(64 * KiB, NULL);
 
@@ -80,23 +80,19 @@ static void worker(int client_socket) {
   return;
 }
 
-int main() {
+int main(void) {
   const struct sigaction sa = {.sa_flags = SA_NOCLDWAIT};
   pg_assert(sigaction(SIGCHLD, &sa, NULL) != -1);
 
   const int server_socket = socket(AF_INET, SOCK_STREAM, 0);
   pg_assert(server_socket >= 0);
 
-  {
-    int val = 1;
-    pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &val,
-                         sizeof(val)) != -1);
-  }
-  {
-    int val = 1;
-    pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &val,
-                         sizeof(val)) != -1);
-  }
+  pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &(int){1},
+                       sizeof(int)) != -1);
+#ifdef SO_REUSEPORT
+  pg_assert(setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &(int){1},
+                       sizeof(int)) != -1);
+#endif
 
   const uint16_t port = 4096;
   const uint16_t net_port = (uint16_t)__builtin_bswap16(port);
@@ -105,7 +101,7 @@ int main() {
       .sin_family = AF_INET,
       .sin_port = net_port,
   };
-  pg_assert(bind(server_socket, (void *)&addr, sizeof(addr)) == 0);
+  pg_assert(bind(server_socket, (const void *)&addr, sizeof(addr)) == 0);
 
   // Will anyways probably be capped to 128 by the kernel depending on the
   // version (see man page).

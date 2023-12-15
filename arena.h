@@ -1,8 +1,7 @@
 #pragma once
 
 #define _POSIX_C_SOURCE 200809L
-#define _XOPEN_SOURCE 500L
-#define _GNU_SOURCE
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -10,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 typedef uint64_t u64;
 typedef int64_t i64;
@@ -23,7 +23,7 @@ typedef size_t usize;
 typedef ssize_t isize;
 
 #define KiB 1024UL
-#define MiB ((KiB) * 1024UL)
+#define MiB ((KiB)*1024UL)
 
 // ------------------- Logs
 
