@@ -32,7 +32,7 @@ static void worker(int client_socket) {
 
   // Send SIGALRM on timer expiration to implement worker timeout.
   const struct itimerval timer = {.it_value = {.tv_sec = 10}};
-  pg_assert(setitimer(0 /* ITIMER_REAL */, &timer, NULL) == 0);
+  pg_assert(setitimer(ITIMER_REAL, &timer, NULL) == 0);
 
   Arena arena = arena_new(64 * KiB, NULL);
 
