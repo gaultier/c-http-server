@@ -289,6 +289,15 @@ static void test_json_parse(void) {
     pg_assert(j == NULL);
   }
   {
+    const Str in = str_from_c("null");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
     const Str in = str_from_c("123");
     u8 mem[256] = {0};
     Arena arena = arena_from_mem(mem, sizeof(mem));
