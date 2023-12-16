@@ -5,6 +5,7 @@
 
 typedef enum {
   JSON_KIND_UNDEFINED,
+  JSON_KIND_NULL,
   JSON_KIND_OBJECT,
   JSON_KIND_ARRAY,
   JSON_KIND_STRING,
@@ -64,6 +65,17 @@ static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
 
   Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
   *j = (Json){.kind = JSON_KIND_BOOL, .v.boolean = val};
+  return j;
+}
+
+static Json *json_parse_null(Read_cursor *cursor, Arena *arena) {
+  pg_assert(read_cursor_peek(*cursor) == 'n');
+
+  if (!read_cursor_match(cursor, str_from_c("null")))
+    return NULL;
+
+  Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+  *j = (Json){.kind = JSON_KIND_NULL};
   return j;
 }
 
@@ -185,6 +197,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
       return json_parse_number(cursor, arena);
     } else if (c == 't' || c == 'f') {
       return json_parse_bool(cursor, arena);
+    } else if (c == 'n') {
+      return json_parse_null(cursor, arena);
     } else if (c == '"') {
       return json_parse_string(cursor, arena);
     } else if (c == '[') {
@@ -208,6 +222,8 @@ json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
   switch (j->kind) {
   case JSON_KIND_UNDEFINED:
     pg_assert(0 && "unreachable");
+  case JSON_KIND_NULL:
+    return sb_append(sb, str_from_c("null"), arena);
   case JSON_KIND_BOOL:
     return sb_append(sb, str_from_c(j->v.boolean ? "true" : "false"), arena);
   case JSON_KIND_NUMBER:
@@ -295,7 +311,8 @@ static void test_json_parse(void) {
     Read_cursor cursor = {.s = in};
 
     const Json *const j = json_parse(&cursor, &arena);
-    pg_assert(j == NULL);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_NULL);
   }
   {
     const Str in = str_from_c("123");
@@ -493,8 +510,8 @@ static void test_json_parse(void) {
     pg_assert(j == NULL);
   }
   {
-    const Str in = str_from_c(
-        "{ \"foo\": 12, \"bar\" : [true, false], \"baz\": \"hello\" }");
+    const Str in = str_from_c("{ \"foo\": 12, \"bar\" : [true, false], "
+                              "\"baz\": \"hello\" , \"null\": null } ");
     u8 mem[1024] = {0};
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
