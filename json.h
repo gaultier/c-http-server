@@ -144,7 +144,7 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
 static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
   pg_assert(read_cursor_next(cursor) == '{');
 
-  Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+  Json *const j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
   *j = (Json){.kind = JSON_KIND_OBJECT};
   Json *it = NULL;
 
@@ -156,7 +156,7 @@ static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
     } else if (str_is_space(c)) {
       read_cursor_next(cursor);
     } else {
-      Json *key = json_parse_string(cursor, arena);
+      Json *const key = json_parse_string(cursor, arena);
       if (key == NULL)
         return NULL;
 
@@ -165,10 +165,11 @@ static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
       if (!read_cursor_match_char(cursor, ':'))
         return NULL;
 
-      Json *value = json_parse(cursor, arena);
+      Json *const value = json_parse(cursor, arena);
       if (value == NULL)
         return NULL;
 
+      read_cursor_skip_many_spaces(cursor);
       const bool comma = read_cursor_match_char(cursor, ',');
       read_cursor_skip_many_spaces(cursor);
 
