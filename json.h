@@ -198,16 +198,7 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
   if (read_cursor_next(cursor) != '"')
     return NULL;
 
-  Read_cursor copy = *cursor;
-  const u64 start = copy.pos;
-  if (!json_advance_until_string_end(&copy))
-    return NULL;
-
-  const u64 end = copy.pos;
-  pg_assert(start < end);
-
-  // OPTIMIZATION: Could actually be smaller.
-  Str_builder sb = sb_new(end - start, arena);
+  Str_builder sb = sb_new(cursor->s.len - cursor->pos, arena);
 
   while (!read_cursor_is_at_end(*cursor)) {
     u32 c = 0;

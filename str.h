@@ -723,4 +723,52 @@ __attribute__((warn_unused_result)) static u8 hex_digit_to_u8(u8 c) {
 
   if ('a' <= c && c <= 'f')
     return 10 + c - 'a';
+
+  __builtin_unreachable();
+}
+
+typedef struct {
+  u8 data[4];
+  u8 len;
+} Unicode_character;
+
+__attribute__((warn_unused_result)) static Unicode_character
+char32_to_utf8(u32 c) {
+  if (c < 0x7f)
+    return (Unicode_character){.data = {(u8)c}, .len = 1};
+
+  if (c <= 0x7ff)
+    return (Unicode_character){
+        .data =
+            {
+                [0] = 0xc0 | ((c >> 6) & 0x1f),
+                [1] = 0x80 | ((c >> 0) & 0x3f),
+            },
+        .len = 2,
+    };
+
+  if (c <= 0xffff)
+    return (Unicode_character){
+        .data =
+            {
+                [0] = 0xe0 | ((c >> 12) & 0xf),
+                [1] = 0x80 | ((c >> 6) & 0x3f),
+                [2] = 0x80 | ((c >> 0) & 0x3f),
+            },
+        .len = 3,
+    };
+
+  if (c <= 0x10ffff)
+    return (Unicode_character){
+        .data =
+            {
+                [0] = 0xf0 | ((c >> 18) & 0x7),
+                [1] = 0x80 | ((c >> 12) & 0x3f),
+                [2] = 0x80 | ((c >> 6) & 0x3f),
+                [3] = 0x80 | ((c >> 0) & 0x3f),
+            },
+        .len = 4,
+    };
+
+  return (Unicode_character){0};
 }
