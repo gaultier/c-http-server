@@ -599,7 +599,7 @@ static void test_json_parse(void) {
     const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
-    pg_assert(str_eq_c(j->v.string, "foo\\\"bar"));
+    pg_assert(str_eq_c(j->v.string, "foo\"bar"));
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
