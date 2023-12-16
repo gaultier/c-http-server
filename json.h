@@ -57,6 +57,8 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
 
   // TODO: 1e3.
   u64 power_of_10 = 1;
+  bool frac_present = false;
+
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
     if (str_is_digit(c)) {
@@ -68,6 +70,8 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
         return NULL;
 
       num = num + frac / (double)power_of_10;
+
+      frac_present = true;
     } else {
       break;
     }
@@ -391,6 +395,15 @@ static void test_json_parse(void) {
     pg_assert((u64)j->v.number == 123);
 
     pg_assert(read_cursor_is_at_end(cursor));
+  }
+  {
+    const Str in = str_from_c("123.");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
   }
   {
     const Str in = str_from_c("123.456");
