@@ -241,6 +241,14 @@ sb_grow(Str_builder sb, usize more, Arena *_Nonnull arena) {
 
   usize new_cap = ut_next_power_of_two(sb.cap + more + 1 /* NUL terminator */);
   pg_assert(new_cap > sb.len);
+  //
+  // Optimization: if the current allocation is the last in the arena, do not
+  // realloc, just bump the arena ptr.
+  if (arena_is_ptr_last_allocation(arena, sb.data, sb.cap)) {
+    arena->start += new_cap - sb.cap;
+    sb.cap = new_cap;
+    return sb;
+  }
 
   u8 *const new_data = arena_alloc(arena, sizeof(u8), _Alignof(u8), new_cap);
   pg_assert(new_data);

@@ -221,7 +221,7 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
 
     return true;
 
-    Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+    Json *const j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
     *j = (Json){.kind = JSON_KIND_STRING, .v.string = in};
     return j;
   }

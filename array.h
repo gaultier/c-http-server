@@ -22,8 +22,17 @@
 static void array_grow(u32 len, u32 *_Nonnull cap,
                        void *_Nullable *_Nonnull data, u32 item_size,
                        u32 item_align, Arena *_Nonnull arena) {
+  const u64 old_cap = *cap;
   // Big initial capacity because resizing is costly in an arena.
   *cap = *cap == 0 ? 512 : *cap * 2;
+
+  // Optimization: if the current allocation is the last in the arena, do not
+  // realloc, just bump the arena ptr.
+  if (arena_is_ptr_last_allocation(arena, data, old_cap)) {
+    arena->start += *cap - old_cap;
+    return;
+  }
+
   void *new_data = arena_alloc(arena, item_size, item_align, *cap);
   pg_assert(new_data);
 

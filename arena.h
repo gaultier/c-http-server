@@ -145,3 +145,18 @@ arena_alloc(Arena *a, size_t size, size_t align, size_t count) {
 
   return (void *)res;
 }
+
+__attribute__((warn_unused_result)) static bool
+arena_is_ptr_last_allocation(const Arena *_Nonnull arena,
+                             const void *_Nullable ptr, u64 size) {
+  if (!ptr)
+    return false;
+
+  pg_assert(size > 0);
+
+  const u8 *const ptr_u8 = (const u8 *)ptr;
+  pg_assert(ptr_u8 <= arena->start);
+  pg_assert(ptr_u8 + size <= arena->end);
+
+  return ptr_u8 + size == arena->start;
+}
