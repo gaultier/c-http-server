@@ -69,6 +69,7 @@ static bool read_cursor_match_char_oneof(Read_cursor *_Nonnull self,
   for (u64 i = 0; i < needles.len; i++) {
     if (c == needles.data[i]) {
       *matched = c;
+      read_cursor_next(self);
       return true;
     }
   }

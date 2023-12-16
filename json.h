@@ -195,10 +195,10 @@ static bool json_advance_until_string_end(Read_cursor *_Nonnull cursor) {
 
 static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
                                          Arena *_Nonnull arena) {
-  if (read_cursor_next(cursor) != '"')
+  if (!read_cursor_match_char(cursor, '"'))
     return NULL;
 
-  Str_builder out = sb_new(cursor->s.len - cursor->pos, arena);
+  Str_builder out = sb_new(cursor->s.len - cursor->pos - 2 /* quotes */, arena);
 
   while (!read_cursor_is_at_end(*cursor)) {
     u32 c = 0;
