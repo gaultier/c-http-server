@@ -184,16 +184,6 @@ static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
   return JSON_CONSUME_CONTINUE;
 }
 
-// TODO: Add scratch arena to make this useless.
-static bool json_advance_until_string_end(Read_cursor *_Nonnull cursor) {
-  while (!read_cursor_is_at_end(*cursor)) {
-    u32 c = 0;
-    if (json_consume_string_character(cursor, &c))
-      return true;
-  }
-  return false;
-}
-
 static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
                                          Arena *_Nonnull arena) {
   if (!read_cursor_match_char(cursor, '"'))
@@ -208,6 +198,25 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
       return NULL;
 
     if (consume_res == JSON_CONSUME_CONTINUE) {
+      if (char32_is_utf16_first_surrogate_pair(c)) {
+        // Parse a possible following surrogate element, but do not bail if it's
+        // not present.
+        Read_cursor copy = *cursor;
+        u32 second = 0;
+        const Json_consume consume_res_more =
+            json_consume_string_character(&copy, &second);
+        if (consume_res_more == JSON_CONSUME_CONTINUE &&
+            char32_is_utf16_second_surrogate_pair(second)) {
+          const Unicode_character uc = utf16_surrogate_pair_to_utf8(c, second);
+          if (uc.len == 0)
+            return NULL;
+
+          out = sb_append_unicode_character(out, uc, arena);
+          *cursor = copy;
+          continue;
+        }
+      }
+
       const Unicode_character uc = char32_to_utf8(c);
       if (uc.len == 0)
         return NULL;
@@ -605,7 +614,7 @@ static void test_json_parse(void) {
   }
 #if 0
   {
-    const Str in = str_from_c("\"🎄❤️🎁\"");
+    const Str in = str_from_c("\"🎄\"");
     u8 mem[256] = {0};
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
@@ -613,11 +622,24 @@ static void test_json_parse(void) {
     const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
-    pg_assert(str_eq_c(j->v.string, "🎄❤️🎁"));
+    pg_assert(str_eq_c(j->v.string, "🎄"));
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
 #endif
+  {
+    const Str in = str_from_c("\"\\uD834\\uDD1E\"");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(j->v.string, "𝄞"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
   {
     const Str in = str_from_c("\"\\u27644\"");
     u8 mem[256] = {0};

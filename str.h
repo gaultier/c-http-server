@@ -778,3 +778,28 @@ char32_to_utf8(u32 c) {
 
   return (Unicode_character){0};
 }
+
+__attribute__((warn_unused_result)) static bool
+char32_is_utf16_first_surrogate_pair(u32 c) {
+  return 0xd800 <= c && c <= 0xdbff;
+}
+
+__attribute__((warn_unused_result)) static bool
+char32_is_utf16_second_surrogate_pair(u32 c) {
+  return 0xdc00 <= c && c <= 0xdfff;
+}
+
+// See: https://www.unicode.org/faq/utf_bom.html#utf16-3
+__attribute__((warn_unused_result)) static Unicode_character
+utf16_surrogate_pair_to_utf8(u32 hi, u32 lo) {
+  pg_assert(char32_is_utf16_first_surrogate_pair(hi));
+  pg_assert(char32_is_utf16_second_surrogate_pair(lo));
+
+  const u32 X = ((hi & ((1 << 6) - 1)) << 10) | (lo & ((1 << 10) - 1));
+  const u32 W = (hi >> 6) & ((1 << 5) - 1);
+  const u32 U = W + 1;
+
+  const u32 C = U << 16 | X;
+
+  return char32_to_utf8(C);
+}
