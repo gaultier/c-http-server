@@ -80,7 +80,14 @@ static void worker(int client_socket) {
   return;
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
+  pg_unused(argv);
+
+  if (argc != 1) {
+    test_json_parse();
+    return 0;
+  }
+
   const struct sigaction sa = {.sa_flags = SA_NOCLDWAIT};
   pg_assert(sigaction(SIGCHLD, &sa, NULL) != -1);
 

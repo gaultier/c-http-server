@@ -501,7 +501,7 @@ static void test_json_parse(void) {
 
     const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
-    pg_assert(j->kind == JSON_KIND_ARRAY);
+    pg_assert(j->kind == JSON_KIND_OBJECT);
     pg_assert(j->next == NULL);
 
     Json *first_key = j->v.children;

@@ -1,4 +1,4 @@
-SRC := main.c http.h array.h arena.h str.h
+SRC := main.c http.h array.h arena.h str.h json.h
 
 # Assume clang for cross compilation.
 MY_CFLAGS_COMMON := $(shell tr < compile_flags.txt '\n' ' ') -g3
