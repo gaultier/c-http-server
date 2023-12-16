@@ -630,7 +630,7 @@ static void mem_profile_write(Mem_profile *_Nonnull profile,
 __attribute__((warn_unused_result)) static int ut_write_all(int fd, Str s) {
   Str remaining = s;
   while (!str_is_empty(remaining)) {
-    ssize_t write_n = write(fd, remaining.data, remaining.len);
+    const ssize_t write_n = write(fd, remaining.data, remaining.len);
     if (write_n == -1)
       return errno;
 
@@ -639,15 +639,19 @@ __attribute__((warn_unused_result)) static int ut_write_all(int fd, Str s) {
   return 0;
 }
 
-__attribute__((warn_unused_result)) static bool str_is_digit(u8 c) {
+__attribute__((warn_unused_result)) static bool char_is_digit(u8 c) {
   return '0' <= c && c <= '9';
 }
 
-__attribute__((warn_unused_result)) static bool str_is_digit_no_zero(u8 c) {
+__attribute__((warn_unused_result)) static bool char_is_hex_digit(u8 c) {
+  return char_is_digit(c) || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f');
+}
+
+__attribute__((warn_unused_result)) static bool char_is_digit_no_zero(u8 c) {
   return '1' <= c && c <= '9';
 }
 
-__attribute__((warn_unused_result)) static bool str_is_space(u8 c) {
+__attribute__((warn_unused_result)) static bool char_is_space(u8 c) {
   return c == ' ' || c == '\n' || c == '\r' || c == '\t';
 }
 
@@ -665,7 +669,7 @@ __attribute__((warn_unused_result)) static usize str_to_u64(Str s) {
   for (usize i = 0; i < s.len; i++) {
     const u8 c = s.data[i];
 
-    if (str_is_digit(c)) {
+    if (char_is_digit(c)) {
       num = num * 10 + (c - '0');
     } else {
       return 0;
@@ -698,4 +702,17 @@ sb_read_to_fill(Str_builder sb, int fd) {
     pg_assert(sb.len <= sb.cap);
   }
   return (Read_result){.content = sb_build(sb)};
+}
+
+__attribute__((warn_unused_result)) static u8 hex_digit_to_u8(u8 c) {
+  pg_assert(char_is_hex_digit(c));
+
+  if (char_is_digit(c))
+    return c - '0';
+
+  if ('A' <= c && c <= 'F')
+    return 10 + c - 'A';
+
+  if ('a' <= c && c <= 'f')
+    return 10 + c - 'a';
 }

@@ -35,7 +35,7 @@ static bool json_parse_number_one_or_more(Read_cursor *_Nonnull cursor,
 
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
-    if (!str_is_digit(c))
+    if (!char_is_digit(c))
       break;
 
     at_least_one_digit = true;
@@ -52,19 +52,19 @@ static bool json_parse_number_one_or_more(Read_cursor *_Nonnull cursor,
 static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
                                          Arena *_Nonnull arena) {
   pg_assert(read_cursor_peek(*cursor) == '-' ||
-            str_is_digit_no_zero(read_cursor_peek(*cursor)));
+            char_is_digit_no_zero(read_cursor_peek(*cursor)));
 
   double num = 0;
 
   const double sign = read_cursor_match_char(cursor, '-') ? -1 : 1;
-  if (!str_is_digit_no_zero(read_cursor_peek(*cursor)))
+  if (!char_is_digit_no_zero(read_cursor_peek(*cursor)))
     return NULL;
 
   bool frac_present = false;
 
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
-    if (str_is_digit(c)) {
+    if (char_is_digit(c)) {
       num = num * 10 + (c - '0');
       read_cursor_next(cursor);
     } else if (read_cursor_match_char(cursor, '.')) {
@@ -135,24 +135,95 @@ static Json *_Nullable json_parse_null(Read_cursor *_Nonnull cursor,
   return j;
 }
 
+typedef enum {
+  JSON_CONSUME_CONTINUE,
+  JSON_CONSUME_AT_END,
+  JSON_CONSUME_ERROR,
+} Json_consume;
+
+static Json_consume json_consume_unicode_literal(Read_cursor *_Nonnull cursor,
+                                                 u32 *_Nonnull res) {
+  for (u64 i = 0; i < 4; i++) {
+    const u8 c = read_cursor_next(cursor);
+
+    if (!char_is_hex_digit(c))
+      return JSON_CONSUME_ERROR;
+
+    *res = *res * 16 + hex_digit_to_u8(c);
+  }
+  return JSON_CONSUME_CONTINUE;
+}
+
+static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
+                                                  u32 *res) {
+  if (read_cursor_match_char(cursor, '"'))
+    return JSON_CONSUME_AT_END;
+
+  u8 to_escape_set[] = {0x22, 0x5c, 0x2f, 0x62, 0x66, 0x6e, 0x72, 0x74};
+  if (read_cursor_match_char(cursor, 0x5c)) { // `\`
+    u8 matched = 0;
+    if (read_cursor_match_char_oneof(
+            cursor,
+            (Str){.data = to_escape_set, .len = carray_count(to_escape_set)},
+            &matched)) {
+      *res = (u32)matched;
+      return JSON_CONSUME_CONTINUE;
+    }
+
+    if (read_cursor_match_char(cursor, 'u'))
+      return json_consume_unicode_literal(cursor, res);
+
+    return false;
+  }
+
+  // 'Normal' character.
+  const u8 c = read_cursor_next(cursor);
+  pg_assert((0x20 <= c && c <= 0x21) || (0x23 <= c && c <= 0x5b) ||
+            (0x5d <= c));
+  return JSON_CONSUME_CONTINUE;
+}
+
+// TODO: Add scratch arena to make this useless.
+static bool json_advance_until_string_end(Read_cursor *_Nonnull cursor) {
+  while (!read_cursor_is_at_end(*cursor)) {
+    u32 c = 0;
+    if (json_consume_string_character(cursor, &c))
+      return true;
+  }
+  return false;
+}
+
 static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
                                          Arena *_Nonnull arena) {
   if (read_cursor_next(cursor) != '"')
     return NULL;
 
-  Str s = {.data = read_cursor_remaining(*cursor).data};
+  Read_cursor copy = *cursor;
+  const u64 start = copy.pos;
+  if (!json_advance_until_string_end(&copy))
+    return NULL;
+
+  const u64 end = copy.pos;
+  pg_assert(start < end);
+
+  // OPTIMIZATION: Could actually be smaller.
+  Str_builder sb = sb_new(end - start, arena);
 
   while (!read_cursor_is_at_end(*cursor)) {
-    const u8 c = read_cursor_next(cursor);
-    if (c == '"') {
-      Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
-      *j = (Json){.kind = JSON_KIND_STRING, .v.string = s};
-      return j;
-    } else if (c == 92 /* Backslash */ && read_cursor_match_char(cursor, '"')) {
-      s.len += 2;
-    } else {
-      s.len += 1;
-    }
+    u32 c = 0;
+    const Json_consume consume_res = json_consume_string_character(cursor, &c);
+    if (consume_res == JSON_CONSUME_ERROR)
+      return NULL;
+    if (consume_res == JSON_CONSUME_CONTINUE)
+      continue;
+
+    pg_assert(consume_res == JSON_CONSUME_AT_END);
+
+    return true;
+
+    Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
+    *j = (Json){.kind = JSON_KIND_STRING, .v.string = in};
+    return j;
   }
 
   return NULL;
@@ -174,7 +245,7 @@ static Json *_Nullable json_parse_array(Read_cursor *_Nonnull cursor,
     if (c == ']') {
       read_cursor_next(cursor);
       return j;
-    } else if (str_is_space(c)) {
+    } else if (char_is_space(c)) {
       read_cursor_next(cursor);
     } else {
       Json *child = json_parse(cursor, arena);
@@ -213,7 +284,7 @@ static Json *_Nullable json_parse_object(Read_cursor *_Nonnull cursor,
     if (c == '}') {
       read_cursor_next(cursor);
       return j;
-    } else if (str_is_space(c)) {
+    } else if (char_is_space(c)) {
       read_cursor_next(cursor);
     } else {
       Json *const key = json_parse_string(cursor, arena);
@@ -255,7 +326,7 @@ static Json *_Nullable json_parse(Read_cursor *_Nonnull cursor,
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
 
-    if (str_is_digit_no_zero(c) || c == '-') {
+    if (char_is_digit_no_zero(c) || c == '-') {
       Json *const j = json_parse_number(cursor, arena);
       read_cursor_skip_many_spaces(cursor);
       return j;
@@ -279,7 +350,7 @@ static Json *_Nullable json_parse(Read_cursor *_Nonnull cursor,
       Json *const j = json_parse_object(cursor, arena);
       read_cursor_skip_many_spaces(cursor);
       return j;
-    } else if (str_is_space(c)) {
+    } else if (char_is_space(c)) {
       read_cursor_skip_many_spaces(cursor);
     } else {
       return NULL;

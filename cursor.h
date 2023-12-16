@@ -1,5 +1,6 @@
 #pragma once
 
+#include "arena.h"
 #include "str.h"
 
 typedef struct {
@@ -58,22 +59,30 @@ static u8 read_cursor_next(Read_cursor *self) {
   return read_cursor_is_at_end(*self) ? 0 : self->s.data[self->pos++];
 }
 
-static bool read_cursor_match_char(Read_cursor *self, u8 c) {
+static bool read_cursor_match_char_oneof(Read_cursor *self, Str needles,
+                                         u8 *_Nonnull matched) {
   if (read_cursor_is_at_end(*self))
     return false;
 
-  if (read_cursor_peek(*self) == c) {
-    read_cursor_next(self);
-    return true;
+  const u8 c = read_cursor_peek(*self);
+  for (u64 i = 0; i < needles.len; i++) {
+    if (c == needles.data[i]) {
+      *matched = c;
+      return true;
+    }
   }
 
   return false;
 }
 
+static bool read_cursor_match_char(Read_cursor *self, u8 c) {
+  return read_cursor_match_char_oneof(self, (Str){.data = &c, .len = 1});
+}
+
 static void read_cursor_skip_many_spaces(Read_cursor *self) {
   while (!read_cursor_is_at_end(*self)) {
     const u8 c = read_cursor_peek(*self);
-    if (str_is_space(c)) {
+    if (char_is_space(c)) {
       read_cursor_next(self);
     } else {
       return;

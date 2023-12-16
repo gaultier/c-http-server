@@ -57,6 +57,8 @@ static bool cli_log_verbose = false;
 
 #define PG_DBL_EPSILON (double)2.2e-16
 
+#define carray_count(a) (sizeof(a) / sizeof((a)[0]))
+
 static u64 pg_pow_u64(u64 a, u64 b) {
   if (b == 0)
     return 1;
