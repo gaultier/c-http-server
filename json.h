@@ -603,6 +603,34 @@ static void test_json_parse(void) {
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
+#if 0
+  {
+    const Str in = str_from_c("\"🎄❤️🎁\"");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(j->v.string, "🎄❤️🎁"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
+#endif
+  {
+    const Str in = str_from_c("\"x\\u2764y\"");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_STRING);
+    pg_assert(str_eq_c(j->v.string, "x❤y"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
   {
     const Str in = str_from_c("[]");
     u8 mem[256] = {0};
