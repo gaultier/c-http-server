@@ -198,20 +198,27 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
   if (read_cursor_next(cursor) != '"')
     return NULL;
 
-  Str_builder sb = sb_new(cursor->s.len - cursor->pos, arena);
+  Str_builder out = sb_new(cursor->s.len - cursor->pos, arena);
 
   while (!read_cursor_is_at_end(*cursor)) {
     u32 c = 0;
     const Json_consume consume_res = json_consume_string_character(cursor, &c);
     if (consume_res == JSON_CONSUME_ERROR)
       return NULL;
-    if (consume_res == JSON_CONSUME_CONTINUE)
+
+    if (consume_res == JSON_CONSUME_CONTINUE) {
+      const Unicode_character uc = char32_to_utf8(c);
+      if (uc.len == 0)
+        return NULL;
+
+      out = sb_append_unicode_character(out, uc, arena);
       continue;
+    }
 
     pg_assert(consume_res == JSON_CONSUME_AT_END);
 
     Json *const j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
-    *j = (Json){.kind = JSON_KIND_STRING, .v.string = in};
+    *j = (Json){.kind = JSON_KIND_STRING, .v.string = sb_build(out)};
     return j;
   }
 

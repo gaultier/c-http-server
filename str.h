@@ -27,6 +27,11 @@ typedef struct {
 } Str;
 Array_struct(Str);
 
+typedef struct {
+  u8 data[4];
+  u8 len;
+} Unicode_character;
+
 __attribute__((warn_unused_result)) static u32 str_count(Str s, u8 c) {
   pg_assert(s.data);
 
@@ -280,6 +285,12 @@ sb_append(Str_builder sb, Str more, Arena *_Nonnull arena) {
   sb.data[sb.len + more.len] = 0;
   return (Str_builder){
       .len = sb.len + more.len, .data = sb.data, .cap = sb.cap};
+}
+
+__attribute__((warn_unused_result)) static Str_builder
+sb_append_unicode_character(Str_builder sb, Unicode_character c,
+                            Arena *_Nonnull arena) {
+  return sb_append(sb, (Str){.data = c.data, .len = c.len}, arena);
 }
 
 __attribute__((warn_unused_result)) static Str_builder
@@ -726,11 +737,6 @@ __attribute__((warn_unused_result)) static u8 hex_digit_to_u8(u8 c) {
 
   __builtin_unreachable();
 }
-
-typedef struct {
-  u8 data[4];
-  u8 len;
-} Unicode_character;
 
 __attribute__((warn_unused_result)) static Unicode_character
 char32_to_utf8(u32 c) {
