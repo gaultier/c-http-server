@@ -72,13 +72,13 @@ static u64 pg_pow_u64(u64 a, u64 b) {
 
 typedef struct Mem_profile Mem_profile;
 typedef struct {
-  u8 *start;
-  u8 *end;
-  Mem_profile *profile;
+  u8 *_Nonnull start;
+  u8 *_Nonnull end;
+  Mem_profile *_Nullable profile;
 } Arena;
 
-__attribute__((warn_unused_result)) static u32 arena_offset_from_end(void *ptr,
-                                                                     Arena a) {
+__attribute__((warn_unused_result)) static u32
+arena_offset_from_end(void *_Nonnull ptr, Arena a) {
   pg_assert((u8 *)ptr <= a.end);
 
   const usize offset = (usize)(a.end - (u8 *)ptr);
@@ -88,9 +88,9 @@ __attribute__((warn_unused_result)) static u32 arena_offset_from_end(void *ptr,
 }
 
 __attribute__((warn_unused_result)) static Arena
-arena_new(usize cap, Mem_profile *profile) {
-  u8 *mem = mmap(NULL, cap, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE,
-                 -1, 0);
+arena_new(usize cap, Mem_profile *_Nullable profile) {
+  u8 *const mem = mmap(NULL, cap, PROT_READ | PROT_WRITE,
+                       MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
   pg_assert(mem);
 
   Arena arena = {
@@ -101,26 +101,27 @@ arena_new(usize cap, Mem_profile *profile) {
   return arena;
 }
 
-__attribute__((warn_unused_result)) static Arena arena_from_mem(u8 *mem,
-                                                                usize mem_len) {
+__attribute__((warn_unused_result)) static Arena
+arena_from_mem(u8 *_Nonnull mem, usize mem_len) {
   return (Arena){
       .start = mem,
       .end = mem + mem_len,
   };
 }
 
-static void mem_profile_record_alloc(Mem_profile *profile, usize objects_count,
-                                     usize bytes_count);
+static void mem_profile_record_alloc(Mem_profile *_Nonnull profile,
+                                     usize objects_count, usize bytes_count);
 
 __attribute__((warn_unused_result))
-__attribute((malloc, alloc_size(2, 4), alloc_align(3))) static void *
-arena_alloc(Arena *a, size_t size, size_t align, size_t count) {
+__attribute((malloc, alloc_size(2, 4), alloc_align(3))) static void
+    *_Nonnull arena_alloc(Arena *_Nonnull a, size_t size, size_t align,
+                          size_t count) {
   pg_assert(a->start <= a->end);
   pg_assert(size > 0);
   pg_assert(align == 1 || align == 2 || align == 4 || align == 8);
 
-  usize available = (usize)a->end - (usize)a->start;
-  usize padding = -(usize)a->start & (align - 1);
+  const usize available = (usize)a->end - (usize)a->start;
+  const usize padding = -(usize)a->start & (align - 1);
 
   // Ignore overflow for now.
   size_t offset = padding + size * count;
@@ -132,7 +133,7 @@ arena_alloc(Arena *a, size_t size, size_t align, size_t count) {
     abort();
   }
 
-  u8 *res = a->start + padding;
+  u8 *const res = a->start + padding;
   pg_assert(res + count * size <= a->end);
   memset(res, 0, size * count);
 
@@ -140,7 +141,7 @@ arena_alloc(Arena *a, size_t size, size_t align, size_t count) {
   pg_assert(a->start <= a->end);
 
   if (a->profile) {
-    mem_profile_record_alloc(a->profile, count, offset);
+    mem_profile_record_alloc((Mem_profile *_Nonnull)a->profile, count, offset);
   }
 
   return (void *)res;

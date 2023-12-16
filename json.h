@@ -155,7 +155,7 @@ static Json_consume json_consume_unicode_literal(Read_cursor *_Nonnull cursor,
 }
 
 static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
-                                                  u32 *res) {
+                                                  u32 *_Nonnull res) {
   if (read_cursor_match_char(cursor, '"'))
     return JSON_CONSUME_AT_END;
 
@@ -209,8 +209,6 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
       continue;
 
     pg_assert(consume_res == JSON_CONSUME_AT_END);
-
-    return true;
 
     Json *const j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
     *j = (Json){.kind = JSON_KIND_STRING, .v.string = in};
