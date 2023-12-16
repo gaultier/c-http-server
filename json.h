@@ -2,6 +2,7 @@
 #include "arena.h"
 #include "cursor.h"
 #include "str.h"
+#include <float.h>
 
 typedef enum {
   JSON_KIND_UNDEFINED,
@@ -39,8 +40,9 @@ static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
   // TODO: 1e3.
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
-    if (!str_is_digit(c))
+    if (!str_is_digit(c)) {
       break;
+    }
 
     num = num * 10 + (c - '0');
     read_cursor_next(cursor);
@@ -195,19 +197,31 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
     const u8 c = read_cursor_peek(*cursor);
 
     if (str_is_digit(c) || c == '-') {
-      return json_parse_number(cursor, arena);
+      Json *const j = json_parse_number(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (c == 't' || c == 'f') {
-      return json_parse_bool(cursor, arena);
+      Json *const j = json_parse_bool(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (c == 'n') {
-      return json_parse_null(cursor, arena);
+      Json *const j = json_parse_null(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (c == '"') {
-      return json_parse_string(cursor, arena);
+      Json *const j = json_parse_string(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (c == '[') {
-      return json_parse_array(cursor, arena);
+      Json *const j = json_parse_array(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (c == '{') {
-      return json_parse_object(cursor, arena);
+      Json *const j = json_parse_object(cursor, arena);
+      read_cursor_skip_many_spaces(cursor);
+      return j;
     } else if (str_is_space(c)) {
-      read_cursor_next(cursor);
+      read_cursor_skip_many_spaces(cursor);
     } else {
       return NULL;
     }
@@ -314,6 +328,8 @@ static void test_json_parse(void) {
     const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("123");
@@ -325,7 +341,22 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert((u64)j->v.number == 123);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
+  //{
+  //  const Str in = str_from_c("123.456");
+  //  u8 mem[256] = {0};
+  //  Arena arena = arena_from_mem(mem, sizeof(mem));
+  //  Read_cursor cursor = {.s = in};
+
+  //  const Json *const j = json_parse(&cursor, &arena);
+  //  pg_assert(j != NULL);
+  //  pg_assert(j->kind == JSON_KIND_NUMBER);
+  //  pg_assert(j->v.number - 123.456 <= DBL_EPSILON);
+
+  //  pg_assert(read_cursor_is_at_end(cursor));
+  //}
   {
     const Str in = str_from_c("-123");
     u8 mem[256] = {0};
@@ -336,6 +367,8 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert((i64)j->v.number == -123);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("true");
@@ -347,6 +380,8 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_BOOL);
     pg_assert(j->v.boolean == true);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("false");
@@ -358,6 +393,8 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_BOOL);
     pg_assert(j->v.boolean == false);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("\"foo\"");
@@ -369,6 +406,8 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("\"foo\\\"bar\"");
@@ -380,6 +419,8 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo\\\"bar"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("[]");
@@ -392,6 +433,8 @@ static void test_json_parse(void) {
     pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->v.children == NULL);
     pg_assert(j->v.children == NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c(" [ 12 ] ");
@@ -409,6 +452,8 @@ static void test_json_parse(void) {
     pg_assert(child->kind == JSON_KIND_NUMBER);
     pg_assert((u64)child->v.number == 12);
     pg_assert(child->next == NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("[12, ]");
@@ -440,6 +485,8 @@ static void test_json_parse(void) {
     pg_assert(second_child->kind == JSON_KIND_NUMBER);
     pg_assert((u64)second_child->v.number == 3);
     pg_assert(second_child->next == NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("{}");
@@ -452,6 +499,8 @@ static void test_json_parse(void) {
     pg_assert(j->kind == JSON_KIND_OBJECT);
     pg_assert(j->v.children == NULL);
     pg_assert(j->v.children == NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c(" { \"abc\" : 12 } ");
@@ -473,6 +522,8 @@ static void test_json_parse(void) {
     pg_assert(value != NULL);
     pg_assert((u64)value->v.number == 12);
     pg_assert(value->next == NULL);
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c("{ \"abc\" : 12, }");
@@ -560,6 +611,8 @@ static void test_json_parse(void) {
     pg_assert(third_value != NULL);
     pg_assert(third_value->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(third_value->v.string, "hello"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
   {
     const Str in = str_from_c(
@@ -579,5 +632,7 @@ static void test_json_parse(void) {
                             "  ],\n"
                             "  \"baz\": \"hello\"\n"
                             "}"));
+
+    pg_assert(read_cursor_is_at_end(cursor));
   }
 }
