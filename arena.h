@@ -23,7 +23,7 @@ typedef size_t usize;
 typedef ssize_t isize;
 
 #define KiB 1024UL
-#define MiB ((KiB)*1024UL)
+#define MiB ((KiB) * 1024UL)
 
 // ------------------- Logs
 
@@ -55,6 +55,7 @@ static bool cli_log_verbose = false;
 
 #define pg_max(a, b) (((a) > (b)) ? (a) : (b))
 
+#define PG_DBL_EPSILON 0.0001
 // --------------------------- Arena
 
 typedef struct Mem_profile Mem_profile;

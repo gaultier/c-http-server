@@ -2,7 +2,6 @@
 #include "arena.h"
 #include "cursor.h"
 #include "str.h"
-#include <float.h>
 
 typedef enum {
   JSON_KIND_UNDEFINED,
@@ -24,12 +23,31 @@ struct Json {
     double number;
     bool boolean;
     Str string;
-    Json *children;
+    Json *_Nullable children;
   } v;
-  Json *next;
+  Json *_Nullable next;
 };
 
-static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
+static bool json_parse_number_frac(Read_cursor *_Nonnull cursor,
+                                   double *_Nonnull res) {
+  bool at_least_one_digit = false;
+
+  while (!read_cursor_is_at_end(*cursor)) {
+    const u8 c = read_cursor_peek(*cursor);
+    if (!str_is_digit(c))
+      break;
+
+    at_least_one_digit = true;
+    *res = *res / 10 + (c - '0');
+
+    read_cursor_next(cursor);
+  }
+
+  return at_least_one_digit;
+}
+
+static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
+                                         Arena *_Nonnull arena) {
   pg_assert(read_cursor_peek(*cursor) == '-' ||
             str_is_digit(read_cursor_peek(*cursor)));
 
@@ -38,13 +56,22 @@ static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
   const double sign = read_cursor_match_char(cursor, '-') ? -1 : 1;
 
   // TODO: 1e3.
+  u64 power_of_10 = 1;
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
-    if (!str_is_digit(c)) {
+    if (str_is_digit(c)) {
+      num = num * 10 + (c - '0');
+      power_of_10 *= 10;
+    } else if (read_cursor_match_char(cursor, '.')) {
+      double frac = 0;
+      if (!json_parse_number_frac(cursor, &frac))
+        return NULL;
+
+      num = num + frac / (double)power_of_10;
+    } else {
       break;
     }
 
-    num = num * 10 + (c - '0');
     read_cursor_next(cursor);
   }
 
@@ -53,7 +80,8 @@ static Json *json_parse_number(Read_cursor *cursor, Arena *arena) {
   return j;
 }
 
-static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse_bool(Read_cursor *_Nonnull cursor,
+                                       Arena *_Nonnull arena) {
   pg_assert(read_cursor_peek(*cursor) == 't' ||
             read_cursor_peek(*cursor) == 'f');
 
@@ -70,7 +98,8 @@ static Json *json_parse_bool(Read_cursor *cursor, Arena *arena) {
   return j;
 }
 
-static Json *json_parse_null(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse_null(Read_cursor *_Nonnull cursor,
+                                       Arena *_Nonnull arena) {
   pg_assert(read_cursor_peek(*cursor) == 'n');
 
   if (!read_cursor_match(cursor, str_from_c("null")))
@@ -81,7 +110,8 @@ static Json *json_parse_null(Read_cursor *cursor, Arena *arena) {
   return j;
 }
 
-static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
+                                         Arena *_Nonnull arena) {
   if (read_cursor_next(cursor) != '"')
     return NULL;
 
@@ -103,9 +133,11 @@ static Json *json_parse_string(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
-static Json *json_parse(Read_cursor *cursor, Arena *arena);
+static Json *_Nullable json_parse(Read_cursor *_Nonnull cursor,
+                                  Arena *_Nonnull arena);
 
-static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse_array(Read_cursor *_Nonnull cursor,
+                                        Arena *_Nonnull arena) {
   pg_assert(read_cursor_next(cursor) == '[');
 
   Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
@@ -143,7 +175,8 @@ static Json *json_parse_array(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
-static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse_object(Read_cursor *_Nonnull cursor,
+                                         Arena *_Nonnull arena) {
   pg_assert(read_cursor_next(cursor) == '{');
 
   Json *const j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
@@ -192,7 +225,8 @@ static Json *json_parse_object(Read_cursor *cursor, Arena *arena) {
   return NULL;
 }
 
-static Json *json_parse(Read_cursor *cursor, Arena *arena) {
+static Json *_Nullable json_parse(Read_cursor *_Nonnull cursor,
+                                  Arena *_Nonnull arena) {
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
 
@@ -230,7 +264,8 @@ static Json *json_parse(Read_cursor *cursor, Arena *arena) {
 }
 
 __attribute__((warn_unused_result)) static Str_builder
-json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
+json_format_do(const Json *_Nullable j, Str_builder sb, usize indent,
+               Arena *_Nonnull arena) {
   if (j == NULL)
     return sb;
 
@@ -300,8 +335,8 @@ json_format_do(const Json *j, Str_builder sb, usize indent, Arena *arena) {
   }
 }
 
-__attribute__((warn_unused_result)) static Str json_format(const Json *j,
-                                                           Arena *arena) {
+__attribute__((warn_unused_result)) static Str
+json_format(const Json *_Nullable j, Arena *_Nonnull arena) {
   if (j == NULL)
     return (Str){0};
 
@@ -344,19 +379,19 @@ static void test_json_parse(void) {
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
-  //{
-  //  const Str in = str_from_c("123.456");
-  //  u8 mem[256] = {0};
-  //  Arena arena = arena_from_mem(mem, sizeof(mem));
-  //  Read_cursor cursor = {.s = in};
+  {
+    const Str in = str_from_c("123.456");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
 
-  //  const Json *const j = json_parse(&cursor, &arena);
-  //  pg_assert(j != NULL);
-  //  pg_assert(j->kind == JSON_KIND_NUMBER);
-  //  pg_assert(j->v.number - 123.456 <= DBL_EPSILON);
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_NUMBER);
+    pg_assert(j->v.number - 123.456 <= PG_DBL_EPSILON);
 
-  //  pg_assert(read_cursor_is_at_end(cursor));
-  //}
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
   {
     const Str in = str_from_c("-123");
     u8 mem[256] = {0};
