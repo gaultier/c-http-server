@@ -66,6 +66,7 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
     const u8 c = read_cursor_peek(*cursor);
     if (str_is_digit(c)) {
       num = num * 10 + (c - '0');
+      read_cursor_next(cursor);
     } else if (read_cursor_match_char(cursor, '.')) {
       u64 frac = 0;
       u64 len = 0;
@@ -97,8 +98,6 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
     } else {
       break;
     }
-
-    read_cursor_next(cursor);
   }
 
   Json *j = arena_alloc(arena, sizeof(Json), _Alignof(Json), 1);
@@ -443,9 +442,31 @@ static void test_json_parse(void) {
     Read_cursor cursor = {.s = in};
 
     const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j == NULL);
+  }
+  {
+    const Str in = str_from_c("1.23e4");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert(j->v.number - 12300 <= PG_DBL_EPSILON);
+
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
+  {
+    const Str in = str_from_c("123.45e-3");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_NUMBER);
+    pg_assert(j->v.number - 0.12345 <= PG_DBL_EPSILON);
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
