@@ -55,7 +55,7 @@ static bool cli_log_verbose = false;
 
 #define pg_max(a, b) (((a) > (b)) ? (a) : (b))
 
-#define PG_DBL_EPSILON 0.0001
+#define PG_DBL_EPSILON (double)2.2e-16
 
 static u64 pg_pow_u64(u64 a, u64 b) {
   if (b == 0)

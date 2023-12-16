@@ -29,7 +29,8 @@ struct Json {
 };
 
 static bool json_parse_number_one_or_more(Read_cursor *_Nonnull cursor,
-                                          u64 *_Nonnull res) {
+                                          u64 *_Nonnull res,
+                                          u64 *_Nonnull len) {
   bool at_least_one_digit = false;
 
   while (!read_cursor_is_at_end(*cursor)) {
@@ -38,9 +39,11 @@ static bool json_parse_number_one_or_more(Read_cursor *_Nonnull cursor,
       break;
 
     at_least_one_digit = true;
-    *res = *res / 10 + (c - '0');
+    *res = *res * 10 + (c - '0');
 
     read_cursor_next(cursor);
+
+    *len += 1;
   }
 
   return at_least_one_digit;
@@ -57,21 +60,19 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
   if (!str_is_digit_no_zero(read_cursor_peek(*cursor)))
     return NULL;
 
-  // TODO: 1e3.
-  u64 power_of_10 = 1;
   bool frac_present = false;
 
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
     if (str_is_digit(c)) {
       num = num * 10 + (c - '0');
-      power_of_10 *= 10;
     } else if (read_cursor_match_char(cursor, '.')) {
       u64 frac = 0;
-      if (!json_parse_number_one_or_more(cursor, &frac))
+      u64 len = 0;
+      if (!json_parse_number_one_or_more(cursor, &frac, &len))
         return NULL;
 
-      num = num + (double)frac / (double)power_of_10;
+      num = num + (double)frac / (double)(pg_pow_u64(10, len));
 
       frac_present = true;
     } else if (read_cursor_match_char(cursor, 'e') ||
@@ -79,16 +80,22 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
       if (!frac_present)
         return NULL;
 
-      bool plus = read_cursor_match_char(cursor, '+');
-      bool minus = read_cursor_match_char(cursor, '-');
+      const bool plus = read_cursor_match_char(cursor, '+');
+      const bool minus = read_cursor_match_char(cursor, '-');
       if (plus && minus)
         return NULL;
 
       u64 exp = 0;
-      if (!json_parse_number_one_or_more(cursor, &exp))
+      if (!json_parse_number_one_or_more(cursor, &exp, &(u64){0}))
         return NULL;
 
-      num = num * (double)(pg_pow_u64(10, exp));
+      if (minus) {
+        num /= (double)(pg_pow_u64(10, exp));
+      } else {
+        num *= (double)(pg_pow_u64(10, exp));
+      }
+    } else {
+      break;
     }
 
     read_cursor_next(cursor);
@@ -426,6 +433,19 @@ static void test_json_parse(void) {
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert(j->v.number - 123.456 <= PG_DBL_EPSILON);
+
+    pg_assert(read_cursor_is_at_end(cursor));
+  }
+  {
+    const Str in = str_from_c("1.23.e4");
+    u8 mem[256] = {0};
+    Arena arena = arena_from_mem(mem, sizeof(mem));
+    Read_cursor cursor = {.s = in};
+
+    const Json *const j = json_parse(&cursor, &arena);
+    pg_assert(j != NULL);
+    pg_assert(j->kind == JSON_KIND_NUMBER);
+    pg_assert(j->v.number - 12300 <= PG_DBL_EPSILON);
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
