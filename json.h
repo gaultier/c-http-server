@@ -28,8 +28,8 @@ struct Json {
   Json *_Nullable next;
 };
 
-static bool json_parse_number_frac(Read_cursor *_Nonnull cursor,
-                                   double *_Nonnull res) {
+static bool json_parse_number_one_or_more(Read_cursor *_Nonnull cursor,
+                                          u64 *_Nonnull res) {
   bool at_least_one_digit = false;
 
   while (!read_cursor_is_at_end(*cursor)) {
@@ -49,11 +49,13 @@ static bool json_parse_number_frac(Read_cursor *_Nonnull cursor,
 static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
                                          Arena *_Nonnull arena) {
   pg_assert(read_cursor_peek(*cursor) == '-' ||
-            str_is_digit(read_cursor_peek(*cursor)));
+            str_is_digit_no_zero(read_cursor_peek(*cursor)));
 
   double num = 0;
 
   const double sign = read_cursor_match_char(cursor, '-') ? -1 : 1;
+  if (!str_is_digit_no_zero(read_cursor_peek(*cursor)))
+    return NULL;
 
   // TODO: 1e3.
   u64 power_of_10 = 1;
@@ -65,15 +67,28 @@ static Json *_Nullable json_parse_number(Read_cursor *_Nonnull cursor,
       num = num * 10 + (c - '0');
       power_of_10 *= 10;
     } else if (read_cursor_match_char(cursor, '.')) {
-      double frac = 0;
-      if (!json_parse_number_frac(cursor, &frac))
+      u64 frac = 0;
+      if (!json_parse_number_one_or_more(cursor, &frac))
         return NULL;
 
-      num = num + frac / (double)power_of_10;
+      num = num + (double)frac / (double)power_of_10;
 
       frac_present = true;
-    } else {
-      break;
+    } else if (read_cursor_match_char(cursor, 'e') ||
+               read_cursor_match_char(cursor, 'E')) {
+      if (!frac_present)
+        return NULL;
+
+      bool plus = read_cursor_match_char(cursor, '+');
+      bool minus = read_cursor_match_char(cursor, '-');
+      if (plus && minus)
+        return NULL;
+
+      u64 exp = 0;
+      if (!json_parse_number_one_or_more(cursor, &exp))
+        return NULL;
+
+      num = num * (double)(pg_pow_u64(10, exp));
     }
 
     read_cursor_next(cursor);
@@ -234,7 +249,7 @@ static Json *_Nullable json_parse(Read_cursor *_Nonnull cursor,
   while (!read_cursor_is_at_end(*cursor)) {
     const u8 c = read_cursor_peek(*cursor);
 
-    if (str_is_digit(c) || c == '-') {
+    if (str_is_digit_no_zero(c) || c == '-') {
       Json *const j = json_parse_number(cursor, arena);
       read_cursor_skip_many_spaces(cursor);
       return j;
@@ -377,11 +392,7 @@ static void test_json_parse(void) {
     Read_cursor cursor = {.s = in};
 
     const Json *const j = json_parse(&cursor, &arena);
-    pg_assert(j != NULL);
-    pg_assert(j->kind == JSON_KIND_NUMBER);
-    pg_assert((u64)j->v.number == 123);
-
-    pg_assert(read_cursor_is_at_end(cursor));
+    pg_assert(j == NULL);
   }
   {
     const Str in = str_from_c("123");

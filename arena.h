@@ -56,6 +56,16 @@ static bool cli_log_verbose = false;
 #define pg_max(a, b) (((a) > (b)) ? (a) : (b))
 
 #define PG_DBL_EPSILON 0.0001
+
+static u64 pg_pow_u64(u64 a, u64 b) {
+  if (b == 0)
+    return 1;
+  if (b == 1)
+    return a;
+  else
+    return a * pg_pow_u64(a, b - 1);
+}
+
 // --------------------------- Arena
 
 typedef struct Mem_profile Mem_profile;
