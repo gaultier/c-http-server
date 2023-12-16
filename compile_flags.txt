@@ -8,4 +8,3 @@
 -Wno-disabled-macro-expansion
 -Wno-gnu-alignof-expression
 -fno-omit-frame-pointer
---target=x86_64-unknown-linux-musl

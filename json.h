@@ -285,7 +285,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -294,7 +294,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert((u64)j->v.number == 123);
@@ -305,7 +305,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_NUMBER);
     pg_assert((i64)j->v.number == -123);
@@ -316,7 +316,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_BOOL);
     pg_assert(j->v.boolean == true);
@@ -327,7 +327,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_BOOL);
     pg_assert(j->v.boolean == false);
@@ -338,7 +338,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo"));
@@ -349,7 +349,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
     pg_assert(str_eq_c(j->v.string, "foo\\\"bar"));
@@ -360,7 +360,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->v.children == NULL);
@@ -372,7 +372,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->next == NULL);
@@ -389,7 +389,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -398,7 +398,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->next == NULL);
@@ -420,7 +420,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_OBJECT);
     pg_assert(j->v.children == NULL);
@@ -432,7 +432,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_OBJECT);
     pg_assert(j->next == NULL);
@@ -453,7 +453,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -462,7 +462,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -471,7 +471,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -480,7 +480,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j == NULL);
   }
   {
@@ -490,7 +490,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_ARRAY);
     pg_assert(j->next == NULL);
@@ -541,7 +541,7 @@ static void test_json_parse(void) {
     Arena arena = arena_from_mem(mem, sizeof(mem));
     Read_cursor cursor = {.s = in};
 
-    Json *j = json_parse(&cursor, &arena);
+    const Json *const j = json_parse(&cursor, &arena);
     const Str out = json_format(j, &arena);
 
     pg_assert(str_eq_c(out, "{\n"
