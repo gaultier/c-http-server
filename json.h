@@ -180,6 +180,7 @@ static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
   const u8 c = read_cursor_next(cursor);
   pg_assert((0x20 <= c && c <= 0x21) || (0x23 <= c && c <= 0x5b) ||
             (0x5d <= c));
+  *res = c;
   return JSON_CONSUME_CONTINUE;
 }
 
