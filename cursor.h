@@ -93,5 +93,70 @@ static void read_cursor_skip_many_spaces(Read_cursor *_Nonnull self) {
   }
 }
 
-__attribute__((warn_unused_result)) static bool
-read_cursor_utf8_codepoint(Read_cursor *_Nonnull self) {}
+__attribute__((warn_unused_result)) static Unicode_character
+read_cursor_utf8_rune(Read_cursor *_Nonnull self) {
+  if (read_cursor_is_at_end(*self))
+    return (Unicode_character){0};
+
+  const u8 c1 = read_cursor_next(self);
+
+  switch (utf8_rune_announced_length(c1)) {
+  case 0:
+    return (Unicode_character){0};
+  case 1:
+    return (Unicode_character){.data = {c1}, .len = 1};
+  case 2: {
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c2 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    return (Unicode_character){.data = {c1, c2}, .len = 2};
+  }
+  case 3: {
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c2 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c3 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    return (Unicode_character){.data = {c1, c2, c3}, .len = 3};
+  }
+  case 4: {
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c2 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c3 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    if (read_cursor_is_at_end(*self))
+      return (Unicode_character){0};
+
+    const u8 c4 = read_cursor_next(self);
+    if (!utf8_is_continuation_byte(c2))
+      return (Unicode_character){0};
+
+    return (Unicode_character){.data = {c1, c2, c3, c4}, .len = 4};
+  }
+  default:
+    return (Unicode_character){0};
+  }
+}

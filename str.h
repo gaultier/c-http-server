@@ -821,3 +821,7 @@ __attribute__((warn_unused_result)) static u8 utf8_rune_announced_length(u8 c) {
 
   return 0;
 }
+
+__attribute__((warn_unused_result)) static u8 utf8_is_continuation_byte(u8 c) {
+  return (c & 0x80) == 0x80;
+}
