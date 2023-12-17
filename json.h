@@ -616,7 +616,6 @@ static void test_json_parse(void) {
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
-#if 0
   {
     const Str in = str_from_c("\"🎄\"");
     u8 mem[256] = {0};
@@ -630,7 +629,6 @@ static void test_json_parse(void) {
 
     pg_assert(read_cursor_is_at_end(cursor));
   }
-#endif
   { // utf16 surrogate pairs for codepoints not in the multilingual plane
     const Str in = str_from_c("\"\\uD834\\uDD1E\"");
     u8 mem[256] = {0};

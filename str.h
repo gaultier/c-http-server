@@ -805,3 +805,19 @@ utf16_surrogate_pair_to_utf8(u32 hi, u32 lo) {
 
   return char32_to_utf8(C);
 }
+
+__attribute__((warn_unused_result)) static u8 utf8_rune_announced_length(u8 c) {
+  if ((c & 0x80) == 0)
+    return 1;
+
+  if ((c & 0xc0) == 0xc0)
+    return 2;
+
+  if ((c & 0xe0) == 0xe0)
+    return 3;
+
+  if ((c & 0xf0) == 0xf0)
+    return 4;
+
+  return 0;
+}

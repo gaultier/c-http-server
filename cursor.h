@@ -92,3 +92,6 @@ static void read_cursor_skip_many_spaces(Read_cursor *_Nonnull self) {
     }
   }
 }
+
+__attribute__((warn_unused_result)) static bool
+read_cursor_utf8_codepoint(Read_cursor *_Nonnull self) {}
