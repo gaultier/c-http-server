@@ -136,7 +136,8 @@ static Json *_Nullable json_parse_null(Read_cursor *_Nonnull cursor,
 }
 
 typedef enum {
-  JSON_CONSUME_CONTINUE,
+  JSON_CONSUME_U4,
+  JSON_CONSUME_RUNE,
   JSON_CONSUME_AT_END,
   JSON_CONSUME_ERROR,
 } Json_consume;
@@ -151,11 +152,12 @@ static Json_consume json_consume_unicode_literal(Read_cursor *_Nonnull cursor,
 
     *res = *res * 16 + hex_digit_to_u8(c);
   }
-  return JSON_CONSUME_CONTINUE;
+  return JSON_CONSUME_U4;
 }
 
-static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
-                                                  u32 *_Nonnull res) {
+static Json_consume
+json_consume_string_character(Read_cursor *_Nonnull cursor, u32 *_Nonnull u4,
+                              Unicode_character *_Nonnull rune) {
   if (read_cursor_match_char(cursor, '"'))
     return JSON_CONSUME_AT_END;
 
@@ -166,12 +168,12 @@ static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
             cursor,
             (Str){.data = to_escape_set, .len = carray_count(to_escape_set)},
             &matched)) {
-      *res = (u32)matched;
-      return JSON_CONSUME_CONTINUE;
+      *u4 = (u32)matched;
+      return JSON_CONSUME_U4;
     }
 
     if (read_cursor_match_char(cursor, 'u'))
-      return json_consume_unicode_literal(cursor, res);
+      return json_consume_unicode_literal(cursor, u4);
 
     return false;
   }
@@ -182,8 +184,11 @@ static Json_consume json_consume_string_character(Read_cursor *_Nonnull cursor,
     pg_assert((0x20 <= c && c <= 0x21) || (0x23 <= c && c <= 0x5b) ||
               (0x5d <= c));
   }
-  *res = c;
-  return JSON_CONSUME_CONTINUE;
+  *rune = read_cursor_utf8_rune(cursor);
+  if (rune->len == 0)
+    return JSON_CONSUME_ERROR;
+
+  return JSON_CONSUME_RUNE;
 }
 
 static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
@@ -194,22 +199,30 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
   Str_builder out = sb_new(cursor->s.len - cursor->pos - 2 /* quotes */, arena);
 
   while (!read_cursor_is_at_end(*cursor)) {
-    u32 c = 0;
-    const Json_consume consume_res = json_consume_string_character(cursor, &c);
+    u32 u4 = 0;
+    Unicode_character rune = {0};
+    const Json_consume consume_res =
+        json_consume_string_character(cursor, &u4, &rune);
     if (consume_res == JSON_CONSUME_ERROR)
       return NULL;
 
-    if (consume_res == JSON_CONSUME_CONTINUE) {
-      if (char32_is_utf16_first_surrogate_pair(c)) {
+    if (consume_res == JSON_CONSUME_RUNE) {
+      pg_assert(1 <= rune.len && rune.len <= 4);
+      out = sb_append_unicode_character(out, rune, arena);
+      continue;
+    }
+
+    if (consume_res == JSON_CONSUME_U4) {
+      if (char32_is_utf16_first_surrogate_pair(u4)) {
         // Parse a possible following surrogate element, but do not bail if it's
         // not present.
         Read_cursor copy = *cursor;
         u32 second = 0;
-        const Json_consume consume_res_more =
-            json_consume_string_character(&copy, &second);
-        if (consume_res_more == JSON_CONSUME_CONTINUE &&
+        const Json_consume consume_res_more = json_consume_string_character(
+            &copy, &second, &(Unicode_character){0});
+        if (consume_res_more == JSON_CONSUME_U4 &&
             char32_is_utf16_second_surrogate_pair(second)) {
-          const Unicode_character uc = utf16_surrogate_pair_to_utf8(c, second);
+          const Unicode_character uc = utf16_surrogate_pair_to_utf8(u4, second);
           if (uc.len == 0)
             return NULL;
 
@@ -223,7 +236,7 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
         }
       }
 
-      const Unicode_character uc = char32_to_utf8(c);
+      const Unicode_character uc = char32_to_utf8(u4);
       if (uc.len == 0)
         return NULL;
 
