@@ -13,6 +13,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+static const u32 UNICODE_REPLACEMENT_CHAR = 0xfffd;
+
 // String builder, like a dynamic array.
 typedef struct {
   u8 *_Nullable data;
