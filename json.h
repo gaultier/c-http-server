@@ -232,12 +232,12 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
           continue;
         } else {
           out = sb_append_unicode_character(
-              out, char32_to_utf8(UNICODE_REPLACEMENT_CHARACTER_U4), arena);
+              out, u4_to_utf8(UNICODE_REPLACEMENT_CHARACTER_U4), arena);
           continue;
         }
       }
 
-      const Unicode_character uc = char32_to_utf8(u4);
+      const Unicode_character uc = u4_to_utf8(u4);
       if (uc.len == 0)
         return NULL;
 

@@ -765,8 +765,7 @@ utf8_replace_if_overlong(Unicode_character c) {
   }
 }
 
-__attribute__((warn_unused_result)) static Unicode_character
-char32_to_utf8(u32 c) {
+__attribute__((warn_unused_result)) static Unicode_character u4_to_utf8(u32 c) {
   if (c < 0x7f)
     return (Unicode_character){.data = {(u8)c}, .len = 1};
 
@@ -829,7 +828,7 @@ utf16_surrogate_pair_to_utf8(u32 hi, u32 lo) {
 
   const u32 C = U << 16 | X;
 
-  return char32_to_utf8(C);
+  return u4_to_utf8(C);
 }
 
 __attribute__((warn_unused_result)) static u8 utf8_rune_announced_length(u8 c) {
