@@ -13,7 +13,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-static const u32 UNICODE_REPLACEMENT_CHAR = 0xfffd;
+static const u32 UNICODE_REPLACEMENT_CHARACTER_U4 = 0xfffd;
 
 // String builder, like a dynamic array.
 typedef struct {
@@ -33,6 +33,9 @@ typedef struct {
   u8 data[4];
   u8 len;
 } Unicode_character;
+
+static const Unicode_character UNICODE_REPLACEMENT_CHARACTER =
+    (Unicode_character){.data = {0xef, 0xbf, 0xbd}, .len = 3};
 
 __attribute__((warn_unused_result)) static u32 str_count(Str s, u8 c) {
   pg_assert(s.data);
@@ -741,22 +744,46 @@ __attribute__((warn_unused_result)) static u8 hex_digit_to_u8(u8 c) {
 }
 
 __attribute__((warn_unused_result)) static Unicode_character
+utf8_replace_overlong(Unicode_character c) {
+  switch (c.len) {
+  case 1:
+    return c;
+  case 2:
+    if (c.data[0] == 0xc0 || c.data[1] == 0x80)
+      return UNICODE_REPLACEMENT_CHARACTER;
+    return c;
+  case 3:
+    if (c.data[0] == 0xe0 || c.data[1] == 0x80 || c.data[2] == 0x80)
+      return UNICODE_REPLACEMENT_CHARACTER;
+    return c;
+  case 4:
+    if (c.data[0] == 0xf0 || c.data[1] == 0x80 || c.data[2] == 0x80 ||
+        c.data[3] == 0x80)
+      return UNICODE_REPLACEMENT_CHARACTER;
+    return c;
+  default:
+    pg_assert(0 && "unreachable");
+  }
+}
+
+__attribute__((warn_unused_result)) static Unicode_character
 char32_to_utf8(u32 c) {
   if (c < 0x7f)
     return (Unicode_character){.data = {(u8)c}, .len = 1};
 
-  if (c <= 0x7ff)
-    return (Unicode_character){
+  if (c <= 0x7ff) {
+    return utf8_replace_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xc0 | ((c >> 6) & 0x1f),
                 [1] = 0x80 | ((c >> 0) & 0x3f),
             },
         .len = 2,
-    };
+    });
+  }
 
   if (c <= 0xffff)
-    return (Unicode_character){
+    return utf8_replace_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xe0 | ((c >> 12) & 0xf),
@@ -764,10 +791,10 @@ char32_to_utf8(u32 c) {
                 [2] = 0x80 | ((c >> 0) & 0x3f),
             },
         .len = 3,
-    };
+    });
 
   if (c <= 0x10ffff)
-    return (Unicode_character){
+    return utf8_replace_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xf0 | ((c >> 18) & 0x7),
@@ -776,7 +803,7 @@ char32_to_utf8(u32 c) {
                 [3] = 0x80 | ((c >> 0) & 0x3f),
             },
         .len = 4,
-    };
+    });
 
   return (Unicode_character){0};
 }

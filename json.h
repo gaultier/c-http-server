@@ -231,7 +231,7 @@ static Json *_Nullable json_parse_string(Read_cursor *_Nonnull cursor,
           continue;
         } else {
           out = sb_append_unicode_character(
-              out, char32_to_utf8(UNICODE_REPLACEMENT_CHAR), arena);
+              out, char32_to_utf8(UNICODE_REPLACEMENT_CHARACTER_U4), arena);
           continue;
         }
       }
@@ -666,7 +666,7 @@ static void test_json_parse(void) {
     const Json *const j = json_parse(&cursor, &arena);
     pg_assert(j != NULL);
     pg_assert(j->kind == JSON_KIND_STRING);
-    // UNICODE_REPLACEMENT_CHAR
+    // UNICODE_REPLACEMENT_CHARACTER_U4
     pg_assert(str_eq_c(j->v.string, "\xef\xbf\xbd"));
 
     pg_assert(read_cursor_is_at_end(cursor));
