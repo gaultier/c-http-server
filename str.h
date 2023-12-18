@@ -744,21 +744,20 @@ __attribute__((warn_unused_result)) static u8 hex_digit_to_u8(u8 c) {
 }
 
 __attribute__((warn_unused_result)) static Unicode_character
-utf8_replace_overlong(Unicode_character c) {
+utf8_replace_if_overlong(Unicode_character c) {
   switch (c.len) {
   case 1:
     return c;
   case 2:
-    if (c.data[0] == 0xc0 || c.data[1] == 0x80)
+    if (c.data[0] == 0xc0)
       return UNICODE_REPLACEMENT_CHARACTER;
     return c;
   case 3:
-    if (c.data[0] == 0xe0 || c.data[1] == 0x80 || c.data[2] == 0x80)
+    if (c.data[0] == 0xe0)
       return UNICODE_REPLACEMENT_CHARACTER;
     return c;
   case 4:
-    if (c.data[0] == 0xf0 || c.data[1] == 0x80 || c.data[2] == 0x80 ||
-        c.data[3] == 0x80)
+    if (c.data[0] == 0xf0)
       return UNICODE_REPLACEMENT_CHARACTER;
     return c;
   default:
@@ -772,7 +771,7 @@ char32_to_utf8(u32 c) {
     return (Unicode_character){.data = {(u8)c}, .len = 1};
 
   if (c <= 0x7ff) {
-    return utf8_replace_overlong((Unicode_character){
+    return utf8_replace_if_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xc0 | ((c >> 6) & 0x1f),
@@ -783,7 +782,7 @@ char32_to_utf8(u32 c) {
   }
 
   if (c <= 0xffff)
-    return utf8_replace_overlong((Unicode_character){
+    return utf8_replace_if_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xe0 | ((c >> 12) & 0xf),
@@ -794,7 +793,7 @@ char32_to_utf8(u32 c) {
     });
 
   if (c <= 0x10ffff)
-    return utf8_replace_overlong((Unicode_character){
+    return utf8_replace_if_overlong((Unicode_character){
         .data =
             {
                 [0] = 0xf0 | ((c >> 18) & 0x7),
